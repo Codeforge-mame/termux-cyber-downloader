@@ -32,7 +32,6 @@ An all-in-one Termux command-line media downloader and zero-app Android control 
    cp ~/termux-cyber-downloader/termux-url-opener ~/bin/termux-url-opener
    chmod +x ~/bin/termux-url-opener
    ```
-   *(Replace `YOUR_USERNAME` with your GitHub username if `gh` is not installed).*
 
 3. **Set Up Terminal Shortcuts (`dl`, `dlbatch`, `4g`):**
    ```bash
