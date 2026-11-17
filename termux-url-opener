@@ -1,0 +1,404 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+# Cyber / Hacker Terminal Colors
+G='\033[1;32m'
+C='\033[1;36m'
+Y='\033[1;33m'
+R='\033[1;31m'
+W='\033[1;37m'
+D='\033[0;90m'
+N='\033[0m'
+
+VIDEO_DIR=~/storage/movies
+MUSIC_DIR=~/storage/music
+PIC_DIR=~/storage/pictures
+DOC_DIR=~/storage/shared/Documents
+APK_DIR=~/storage/shared/Documents/APKs
+ARCHIVE_FILE=~/.yt-dlp-archive.txt
+BATCH_FILE=~/links.txt
+
+mkdir -p "$VIDEO_DIR" "$MUSIC_DIR" "$PIC_DIR" "$DOC_DIR" "$APK_DIR"
+touch "$BATCH_FILE"
+
+command -v termux-wake-lock &> /dev/null && termux-wake-lock
+
+OUT_TMPL="%(playlist_title&{}/|)s%(playlist_index&{} - |)s%(title)s.%(ext)s"
+BASE_FLAGS="-4 -N 4 --download-archive $ARCHIVE_FILE"
+BATCH_FLAGS="-4 -N 8 --download-archive $ARCHIVE_FILE"
+SUB_FLAGS="--write-subs --write-auto-subs --sub-lang en --embed-subs"
+
+verify_and_install_apk() {
+  local FILE_PATH="$1"
+  local INSTALL_TARGET="$FILE_PATH"
+  local TEMP_EXTRACT=""
+
+  if [ ! -s "$FILE_PATH" ]; then
+    echo -e "${R}[ERR] File is missing or empty (0 bytes).${N}"
+    MSG="APK error: File empty."
+    return
+  fi
+
+  if ! unzip -tq "$FILE_PATH" &> /dev/null; then
+    echo -e "${R}[ERR] File is corrupted or is an HTML webpage instead of a valid package.${N}"
+    MSG="APK error: Invalid package."
+    return
+  fi
+
+  # Handle .xapk split-APK bundles automatically
+  if [[ "${FILE_PATH,,}" == *.xapk ]]; then
+    echo -e "${Y}[INFO] Split-APK bundle (.xapk) detected. Extracting base APK...${N}"
+    TEMP_EXTRACT=$(mktemp -d)
+    unzip -q "$FILE_PATH" "*.apk" -d "$TEMP_EXTRACT" 2>/dev/null
+    APK_COUNT=$(find "$TEMP_EXTRACT" -maxdepth 2 -iname "*.apk" | wc -l)
+    BASE_APK=$(find "$TEMP_EXTRACT" -maxdepth 2 -iname "*.apk" ! -iname "config.*" | head -n 1)
+
+    if [ "$APK_COUNT" -gt 1 ]; then
+      echo -e "${Y}[WARN] This .xapk contains $APK_COUNT split APK modules (base + device configs).${N}"
+      echo -e "${D} -> Standard Android installer only installs single APKs.${N}"
+      echo -e "${D} -> Attempting base APK install. If it fails to open, install 'SAI (Split APKs Installer)' from F-Droid.${N}"
+    fi
+
+    if [ -n "$BASE_APK" ]; then
+      INSTALL_TARGET="$BASE_APK"
+    else
+      echo -e "${R}[ERR] Could not extract a valid .apk from the .xapk bundle.${N}"
+      rm -rf "$TEMP_EXTRACT"
+      return
+    fi
+  fi
+
+  BEFORE_COUNT=$(cmd package list packages 2>/dev/null | wc -l)
+  echo -e "${C}[EXEC] Launching Android installer for: $(basename "$INSTALL_TARGET")${N}"
+
+  if ! termux-open "$INSTALL_TARGET"; then
+    echo -e "${R}[ERR] Failed to open installer. Enable 'Install unknown apps' for Termux.${N}"
+    [ -n "$TEMP_EXTRACT" ] && rm -rf "$TEMP_EXTRACT"
+    return
+  fi
+
+  read -p "$(echo -e "${Y}Complete the Android popup on screen, then press [Enter] to verify...${N}")"
+  AFTER_COUNT=$(cmd package list packages 2>/dev/null | wc -l)
+
+  if [ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]; then
+    echo -e "${G}[OK] SUCCESS: New app verified as installed on your device!${N}"
+    MSG="App installed successfully!"
+  else
+    echo -e "${Y}[NOTICE] Total installed app count did not change.${N}"
+    echo -e "${D} -> If you updated an existing app, installation succeeded.${N}"
+    echo -e "${D} -> If it failed or was a split .xapk bundle, use SAI (Split APKs Installer) on Documents/APKs.${N}"
+    MSG="APK check finished."
+  fi
+
+  [ -n "$TEMP_EXTRACT" ] && rm -rf "$TEMP_EXTRACT"
+}
+
+download_doc() {
+  read -p "$(echo -e "${Y}Custom filename (no extension) or [Enter] for auto: ${N}")" custom_name
+  TMP_DIR=$(mktemp -d)
+  curl -L -J -O --output-dir "$TMP_DIR" "$1"
+  DOWNLOADED_FILE=$(ls -A "$TMP_DIR" | head -n 1)
+  if [ -n "$DOWNLOADED_FILE" ]; then
+    if [ -n "$custom_name" ]; then
+      EXT="${DOWNLOADED_FILE##*.}"
+      SAFE_NAME=$(echo "$custom_name" | tr -d '/\:*?"<>|')
+      [[ "$SAFE_NAME" == *.* ]] && FINAL_NAME="$SAFE_NAME" || FINAL_NAME="${SAFE_NAME}.${EXT}"
+    else
+      FINAL_NAME="$DOWNLOADED_FILE"
+    fi
+
+    if [[ "${FINAL_NAME,,}" == *.apk || "${FINAL_NAME,,}" == *.xapk ]]; then
+      mv "$TMP_DIR/$DOWNLOADED_FILE" "$APK_DIR/$FINAL_NAME"
+      echo -e "${G}[OK] Saved package to: Documents/APKs/$FINAL_NAME${N}"
+      read -p "$(echo -e "${Y}Install $FINAL_NAME right now? (y/n): ${N}")" inst_now
+      if [[ "$inst_now" == "y" || "$inst_now" == "Y" ]]; then
+        verify_and_install_apk "$APK_DIR/$FINAL_NAME"
+      fi
+      SCAN_TARGET="$APK_DIR"
+    else
+      mv "$TMP_DIR/$DOWNLOADED_FILE" "$DOC_DIR/$FINAL_NAME"
+      echo -e "${G}[OK] Saved as: $FINAL_NAME${N}"
+      MSG="Saved document: $FINAL_NAME"
+      SCAN_TARGET="$DOC_DIR"
+    fi
+  else
+    echo -e "${R}[ERR] Download failed.${N}"
+    MSG="Document download failed."
+  fi
+  rm -rf "$TMP_DIR"
+}
+
+online_app_installer() {
+  if ! command -v apkeep &> /dev/null; then
+    echo -e "${Y}[INFO] Installing apkeep CLI tool first...${N}"
+    pkg install apkeep -y
+  fi
+
+  echo -e "${C}╔══════════════════════════════════════════╗${N}"
+  echo -e "${C}║${G}   ONLINE REPOSITORY INSTALLER (apkeep)   ${C}║${N}"
+  echo -e "${C}╠══════════════════════════════════════════╣${N}"
+  echo -e "${C}║${W} [01] APKPure Source (Mainstream Apps)    ${C}║${N}"
+  echo -e "${C}║${W} [02] F-Droid Source (Open-Source Apps)   ${C}║${N}"
+  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}Select source [01-02]: ${N}")" src_choice
+
+  if [[ "$src_choice" == "00" || "$src_choice" == "0" || -z "$src_choice" ]]; then
+    echo -e "${D}Cancelled.${N}"
+    return
+  fi
+
+  read -p "$(echo -e "${Y}Target app name or package ID (e.g., vlc, sai, whatsapp): ${N}")" query
+  if [ -z "$query" ]; then
+    echo -e "${D}Cancelled.${N}"
+    return
+  fi
+
+  case "${query,,}" in
+    x|twitter) PKG_ID="com.twitter.android" ;;
+    whatsapp) PKG_ID="com.whatsapp" ;;
+    telegram) PKG_ID="org.telegram.messenger" ;;
+    tiktok) PKG_ID="com.zhiliaoapp.musically" ;;
+    instagram) PKG_ID="com.instagram.android" ;;
+    facebook) PKG_ID="com.facebook.katana" ;;
+    chrome) PKG_ID="com.android.chrome" ;;
+    vlc) PKG_ID="org.videolan.vlc" ;;
+    spotify) PKG_ID="com.spotify.music" ;;
+    sai) PKG_ID="com.aefyr.sai.fdroid" ;;
+    *) PKG_ID="$query" ;;
+  esac
+
+  if [[ "$PKG_ID" != *.* ]]; then
+    echo -e "${C}[SCAN] Resolving package ID for '$query'...${N}"
+    HTML_PAGE=$(curl -s -L -A "Mozilla/5.0" --max-time 15 --get --data-urlencode "q=$query" "https://apkpure.com")
+    FOUND_PKG=$(printf "%s" "$HTML_PAGE" | grep -oE '/[a-zA-Z0-9_-]+/[a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+' | head -n 1 | cut -d'/' -f3)
+    if [ -n "$FOUND_PKG" ]; then
+      PKG_ID="$FOUND_PKG"
+      echo -e "${G}[MATCH] Package ID: $PKG_ID${N}"
+    else
+      echo -e "${R}[ERR] Could not resolve package ID. Enter exact ID (e.g., org.videolan.vlc).${N}"
+      return
+    fi
+  fi
+
+  if [[ "$src_choice" == "02" || "$src_choice" == "2" ]]; then
+    SOURCE_FLAG="f-droid"
+  else
+    SOURCE_FLAG="apk-pure"
+  fi
+
+  echo -e "${C}[DOWN] Pulling $PKG_ID from $SOURCE_FLAG...${N}"
+  apkeep -a "$PKG_ID" -d "$SOURCE_FLAG" "$APK_DIR"
+
+  LATEST_APK=$(ls -t "$APK_DIR"/"$PKG_ID"* 2>/dev/null | head -n 1)
+  if [ -n "$LATEST_APK" ]; then
+    verify_and_install_apk "$LATEST_APK"
+    SCAN_TARGET="$APK_DIR"
+  else
+    echo -e "${R}[ERR] Download failed or package blocked by remote server.${N}"
+    MSG="Failed to download $PKG_ID."
+  fi
+}
+
+video_submenu() {
+  echo -e "${C}╔══════════════════════════════════════════╗${N}"
+  echo -e "${C}║${G}     VIDEO / PLAYLIST MATRIX (-N 4)       ${C}║${N}"
+  echo -e "${C}╠══════════════════════════════════════════╣${N}"
+  echo -e "${C}║${W} [01] Best Quality (MP4)                  ${C}║${N}"
+  echo -e "${C}║${W} [02] Best Quality + Subtitles            ${C}║${N}"
+  echo -e "${C}║${W} [03] 720p + Subtitles                    ${C}║${N}"
+  echo -e "${C}║${W} [04] 480p + Subtitles (Data Saver)       ${C}║${N}"
+  echo -e "${C}║${W} [05] 360p + Subtitles (Max Data Saver)   ${C}║${N}"
+  echo -e "${C}║${W} [06] Video Only (Silent Stream)          ${C}║${N}"
+  echo -e "${C}║${W} [07] Trim Specific Clip (Timestamp)      ${C}║${N}"
+  echo -e "${C}║${G} [08] Turbo Mode (-N 8 Parallel Frags)    ${C}║${N}"
+  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}Select stream [01-08]: ${N}")" v_choice
+
+  case $v_choice in
+    01|1) yt-dlp $BASE_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    02|2) yt-dlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    03|3) yt-dlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    04|4) yt-dlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    05|5) yt-dlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    06|6) yt-dlp $BASE_FLAGS -f "bestvideo[ext=mp4]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    07|7)
+      read -p "$(echo -e "${Y}Start time (e.g., 00:01:30): ${N}")" start_t
+      read -p "$(echo -e "${Y}End time   (e.g., 00:02:15): ${N}")" end_t
+      yt-dlp -4 -N 4 --download-sections "*${start_t}-${end_t}" --force-keyframes-at-cuts -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "%(title)s [clip].%(ext)s" "$1"
+      SCAN_TARGET="$VIDEO_DIR"
+      ;;
+    08|8)
+      echo -e "${G}[TURBO] Engaging 8 parallel fragment streams (-N 8)...${N}"
+      yt-dlp -4 -N 8 --download-archive "$ARCHIVE_FILE" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"
+      SCAN_TARGET="$VIDEO_DIR"
+      ;;
+    00|0|9) echo -e "${D}Cancelled.${N}" ;;
+    *) echo -e "${R}[ERR] Invalid video option.${N}" ;;
+  esac
+}
+
+install_apk_scanner() {
+  read -p "$(echo -e "${Y}Enter APK name to search (or press [Enter] to list all): ${N}")" apk_query
+  echo -e "${C}[SCAN] Searching entire internal storage for matching packages...${N}"
+
+  CLEAN_Q="${apk_query%.apk}"
+  CLEAN_Q="${CLEAN_Q%.xapk}"
+  if [ -n "$CLEAN_Q" ]; then
+    mapfile -t APK_LIST < <(find -L ~/storage/shared -path "*/Android/data" -prune -o -path "*/Android/obb" -prune -o -type f \( -iname "*${CLEAN_Q}*.apk" -o -iname "*${CLEAN_Q}*.xapk" \) -print 2>/dev/null)
+  else
+    mapfile -t APK_LIST < <(find -L ~/storage/shared -path "*/Android/data" -prune -o -path "*/Android/obb" -prune -o -type f \( -iname "*.apk" -o -iname "*.xapk" \) -print 2>/dev/null)
+  fi
+
+  if [ ${#APK_LIST[@]} -eq 0 ]; then
+    echo -e "${R}[ERR] No matching .apk or .xapk files found for '$apk_query'.${N}"
+    MSG="No matching APK files found."
+    return
+  fi
+
+  echo -e "${C}╔══════════════════════════════════════════╗${N}"
+  echo -e "${C}║${G}  FOUND ${#APK_LIST[@]} MATCHING PACKAGE(S)             ${C}║${N}"
+  echo -e "${C}╠══════════════════════════════════════════╣${N}"
+  for i in "${!APK_LIST[@]}"; do
+    REL_PATH="${APK_LIST[$i]#$HOME/storage/shared/}"
+    printf "${C}║${W} [%02d] %s${N}\n" $((i+1)) "$REL_PATH"
+  done
+  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}Select package number to install: ${N}")" apk_num
+
+  if [[ "$apk_num" == "00" || "$apk_num" == "0" ]]; then
+    echo -e "${D}Installation cancelled.${N}"
+    return
+  fi
+
+  if ! [[ "$apk_num" =~ ^[0-9]+$ ]] || [ "$apk_num" -lt 1 ] || [ "$apk_num" -gt ${#APK_LIST[@]} ]; then
+    echo -e "${R}[ERR] Invalid selection number.${N}"
+    return
+  fi
+
+  verify_and_install_apk "${APK_LIST[$((apk_num-1))]}"
+}
+
+android_submenu() {
+  echo -e "${C}╔══════════════════════════════════════════╗${N}"
+  echo -e "${C}║${G}     ANDROID & NETWORK CONTROL PANEL      ${C}║${N}"
+  echo -e "${C}╠══════════════════════════════════════════╣${N}"
+  echo -e "${C}║${W} [01] Network Mode (4G Only / Auto)       ${C}║${N}"
+  echo -e "${C}║${W} [02] App Info & Cache Manager (Search)   ${C}║${N}"
+  echo -e "${C}║${W} [03] Battery Optimization Settings       ${C}║${N}"
+  echo -e "${C}║${W} [04] Mobile Data & Data Saver            ${C}║${N}"
+  echo -e "${C}║${W} [05] Phone Storage & Space Cleaner       ${C}║${N}"
+  echo -e "${C}║${G} [06] Local APK Scanner (Search by Name)  ${C}║${N}"
+  echo -e "${C}║${G} [07] Online App Downloader (apkeep)      ${C}║${N}"
+  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}Execute module [01-07]: ${N}")" a_choice
+
+  case $a_choice in
+    01|1)
+      echo -e "${Y}[INFO] Pick 'LTE only' for 4G lock; restore 'LTE/WCDMA' or 'Auto' for calls.${N}"
+      am start -n com.android.phone/.settings.RadioInfo
+      ;;
+    02|2)
+      read -p "$(echo -e "${Y}Enter app name (e.g., youtube, tiktok, chrome): ${N}")" app_query
+      PKG=$(cmd package list packages 2>/dev/null | sed 's/package://g' | grep -i "$app_query" | head -n 1)
+      if [ -n "$PKG" ]; then
+        echo -e "${G}[OK] Opening App Info: $PKG${N}"
+        am start -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$PKG"
+      else
+        echo -e "${Y}[INFO] Opening full Installed Apps list...${N}"
+        am start -a android.settings.APPLICATION_SETTINGS
+      fi
+      ;;
+    03|3) am start -a android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS ;;
+    04|4) am start -a android.settings.DATA_USAGE_SETTINGS ;;
+    05|5) am start -a android.settings.INTERNAL_STORAGE_SETTINGS ;;
+    06|6) install_apk_scanner ;;
+    07|7) online_app_installer ;;
+    00|0|8) echo -e "${D}Cancelled.${N}" ;;
+    *) echo -e "${R}[ERR] Invalid tool option.${N}" ;;
+  esac
+}
+
+CLEAN_URL="${1%%\?*}"
+
+if [[ "$1" == *"t.me/"* ]]; then
+  echo -e "${C}[TG] Telegram link detected! Engaging 8-thread download...${N}"
+  tdl dl -u "$1" -d "$VIDEO_DIR" -t 8 --continue
+  SCAN_TARGET="$VIDEO_DIR"
+  MSG="Telegram download finished!"
+elif [[ "$CLEAN_URL" =~ \.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|apk|xapk|epub)$ ]]; then
+  echo -e "${C}[FILE] Direct file link detected! Routing automatically...${N}"
+  download_doc "$1"
+else
+  while true; do
+  echo -e "${G}╔══════════════════════════════════════════╗${N}"
+  echo -e "${G}║${C}    TERMUX CYBER DOWNLOADER & TOOLKIT     ${G}║${N}"
+  echo -e "${G}╠══════════════════════════════════════════╣${N}"
+  echo -e "${G}║${W} [01] Video / Playlist  -> (Matrix Menu)  ${G}║${N}"
+  echo -e "${G}║${W} [02] Audio Only (MP3)  -> Music Folder   ${G}║${N}"
+  echo -e "${G}║${W} [03] Thumbnail (JPG)   -> Pictures       ${G}║${N}"
+  echo -e "${G}║${W} [04] Document / PDF    -> Documents      ${G}║${N}"
+  echo -e "${G}║${W} [05] Batch Links Queue -> nano links.txt ${G}║${N}"
+  echo -e "${G}║${C} [06] Android & Network -> 4G, Apps, APKs ${G}║${N}"
+  echo -e "${G}║${Y} [07] Update yt-dlp Core                  ${G}║${N}"
+  echo -e "${G}║${R} [00] Exit Terminal                       ${G}║${N}"
+  echo -e "${G}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}root@termux:~# ${N}")" choice
+
+  case $choice in
+    01|1) video_submenu "$1" ;;
+    02|2) yt-dlp $BASE_FLAGS -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$MUSIC_DIR" ;;
+    03|3) yt-dlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$1"; SCAN_TARGET="$PIC_DIR" ;;
+    04|4) download_doc "$1" ;;
+    05|5)
+      nano "$BATCH_FILE"
+      if [ -s "$BATCH_FILE" ]; then
+        echo -e "${C}╔══════════════════════════════════════════╗${N}"
+        echo -e "${C}║${G}    BATCH QUEUE RESOLUTION (-N 8 TURBO)   ${C}║${N}"
+        echo -e "${C}╠══════════════════════════════════════════╣${N}"
+        echo -e "${C}║${W} [01] High Resolution (Best Quality)      ${C}║${N}"
+        echo -e "${C}║${W} [02] 720p (740p Cap)                     ${C}║${N}"
+        echo -e "${C}║${W} [03] 480p (420p Cap)                     ${C}║${N}"
+        echo -e "${C}║${W} [04] 360p (350p Cap)                     ${C}║${N}"
+        echo -e "${C}║${R} [00] Exit / Cancel                       ${C}║${N}"
+        echo -e "${C}╚══════════════════════════════════════════╝${N}"
+        read -p "$(echo -e "${Y}Select batch resolution [01-04]: ${N}")" b_choice
+        case $b_choice in
+          01|1) yt-dlp $BATCH_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+          02|2) yt-dlp $BATCH_FLAGS -f "bestvideo[height<=740][ext=mp4]+bestaudio[ext=m4a]/best[height<=740]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+          03|3) yt-dlp $BATCH_FLAGS -f "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+          04|4) yt-dlp $BATCH_FLAGS -f "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+          00|0|5) echo -e "${D}Batch cancelled. Links kept in ~/links.txt.${N}" ;;
+          *) echo -e "${R}[ERR] Invalid option.${N}" ;;
+        esac
+      else
+        echo -e "${D}~/links.txt is empty.${N}"
+      fi
+      ;;
+    06|6) android_submenu ;;
+    07|7) pip install -U yt-dlp ;;
+    00|0|8) echo -e "${D}Session terminated.${N}"; break ;;
+    *) echo -e "${R}[ERR] Invalid command.${N}" ;;
+  esac
+  echo ""
+  read -p "$(echo -e "${Y}Continue to Main Menu? (y/n): ${N}")" cont_choice
+  if [[ "$cont_choice" != "y" && "$cont_choice" != "Y" ]]; then
+    break
+  fi
+  done
+fi
+
+if [ -n "$SCAN_TARGET" ] && command -v termux-media-scan &> /dev/null; then
+  termux-media-scan -r "$SCAN_TARGET"
+fi
+
+if command -v termux-notification &> /dev/null; then
+  termux-notification --title "Termux Cyber Toolkit" --content "${MSG:-Task completed!}" --sound
+fi
+
+command -v termux-wake-unlock &> /dev/null && termux-wake-unlock
+
+echo -e "${G}[OK] Done!${N}"
+sleep 3
