@@ -23,8 +23,8 @@ touch "$BATCH_FILE"
 command -v termux-wake-lock &> /dev/null && termux-wake-lock
 
 OUT_TMPL="%(playlist_title&{}/|)s%(playlist_index&{} - |)s%(title)s.%(ext)s"
-BASE_FLAGS="-4 -N 4 --download-archive $ARCHIVE_FILE"
-BATCH_FLAGS="-4 -N 8 --download-archive $ARCHIVE_FILE"
+BASE_FLAGS="-4 -N 2 --sleep-interval 3 --max-sleep-interval 8 --download-archive $ARCHIVE_FILE"
+BATCH_FLAGS="-4 -N 3 --sleep-interval 5 --max-sleep-interval 12 --download-archive $ARCHIVE_FILE"
 SUB_FLAGS="--write-subs --write-auto-subs --sub-lang en --embed-subs"
 
 verify_and_install_apk() {
@@ -349,7 +349,7 @@ else
 
   case $choice in
     01|1) video_submenu "$1" ;;
-    02|2) yt-dlp $BASE_FLAGS -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$MUSIC_DIR" ;;
+    02|2) yt-dlp -4 -N 4 --download-archive ~/.yt-dlp-audio-archive.txt -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$MUSIC_DIR" ;;
     03|3) yt-dlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$1"; SCAN_TARGET="$PIC_DIR" ;;
     04|4) download_doc "$1" ;;
     05|5)
