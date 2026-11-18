@@ -55,120 +55,201 @@ run_ytdlp() {
   done
 }
 
-download_images() {
-  local IMG_URL="$1"
-  local CLEAN_IMG="${IMG_URL%%\?*}"
+get_target_image() {
+  local URL_IN="$1"
+  TARGET_IMG=""
+  echo -e "${C}╔══════════════════════════════════════════╗${N}"
+  echo -e "${C}║${G}          SELECT IMAGE SOURCE             ${C}║${N}"
+  echo -e "${C}╠══════════════════════════════════════════╣${N}"
+  echo -e "${C}║${W} Download from Current URL           ${C}║${N}"
+  echo -e "${C}║${W} Pick Local Image from Phone Storage ${C}║${N}"
+  echo -e "${C}║${R} Cancel                              ${C}║${N}"
+  echo -e "${C}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}Choose source [01-02]: ${N}")" img_src
 
-  if [[ "${CLEAN_IMG,,}" =~ \.(jpg|jpeg|png|webp|gif|bmp)$ ]]; then
-    echo -e "${C}[IMG] Direct image URL detected! Saving to Pictures...${N}"
-    curl -L -A "Mozilla/5.0" -J -O --output-dir "$PIC_DIR" "$IMG_URL"
-    MSG="Image saved to Pictures!"
-  elif command -v gallery-dl &> /dev/null; then
-    echo -e "${C}[IMG] Extracting full-resolution image(s) via gallery-dl...${N}"
-    gallery-dl -d "$PIC_DIR" --directory "" "$IMG_URL"
-    MSG="Image(s) saved to Pictures!"
-  else
-    echo -e "${Y}[INFO] gallery-dl not installed. Falling back to curl...${N}"
-    curl -L -A "Mozilla/5.0" -J -O --output-dir "$PIC_DIR" "$IMG_URL"
-  fi
-  SCAN_TARGET="$PIC_DIR"
-}
-
-verify_and_install_apk() {
-  local FILE_PATH="$1"
-  local INSTALL_TARGET="$FILE_PATH"
-  local TEMP_EXTRACT=""
-
-  if [ ! -s "$FILE_PATH" ]; then
-    echo -e "${R}[ERR] File is missing or empty (0 bytes).${N}"
-    MSG="APK error: File empty."
-    return
-  fi
-
-  if ! unzip -tq "$FILE_PATH" &> /dev/null; then
-    echo -e "${R}[ERR] File is corrupted or is an HTML webpage instead of a valid package.${N}"
-    MSG="APK error: Invalid package."
-    return
-  fi
-
-  if [[ "${FILE_PATH,,}" == *.xapk ]]; then
-    echo -e "${Y}[INFO] Split-APK bundle (.xapk) detected. Extracting base APK...${N}"
-    TEMP_EXTRACT=$(mktemp -d)
-    unzip -q "$FILE_PATH" "*.apk" -d "$TEMP_EXTRACT" 2>/dev/null
-    APK_COUNT=$(find "$TEMP_EXTRACT" -maxdepth 2 -iname "*.apk" | wc -l)
-    BASE_APK=$(find "$TEMP_EXTRACT" -maxdepth 2 -iname "*.apk" ! -iname "config.*" | head -n 1)
-
-    if [ "$APK_COUNT" -gt 1 ]; then
-      echo -e "${Y}[WARN] Split bundle contains $APK_COUNT APKs. Attempting base APK install...${N}"
+  if [[ "$img_src" == "01" || "$img_src" == "1" ]]; then
+    if [ -z "$URL_IN" ]; then
+      read -p "$(echo -e "${Y}Paste image/post URL: ${N}")" URL_IN
     fi
-
-    if [ -n "$BASE_APK" ]; then
-      INSTALL_TARGET="$BASE_APK"
+    [ -z "$URL_IN" ] && return
+    TMP_IMG_DIR=$(mktemp -d)
+    CLEAN_IMG="${URL_IN%%\?*}"
+    if [[ "${CLEAN_IMG,,}" =~ \.(jpg|jpeg|png|webp|gif|bmp)$ ]]; then
+      curl -s -L -A "Mozilla/5.0" -J -O --output-dir "$TMP_IMG_DIR" "$URL_IN"
+    elif command -v gallery-dl &> /dev/null; then
+      gallery-dl -d "$TMP_IMG_DIR" --directory "" "$URL_IN"
     else
-      echo -e "${R}[ERR] Could not extract a valid .apk from the .xapk bundle.${N}"
-      rm -rf "$TEMP_EXTRACT"
+      curl -s -L -A "Mozilla/5.0" -J -O --output-dir "$TMP_IMG_DIR" "$URL_IN"
+    fi
+    DL_IMG=$(find "$TMP_IMG_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) | head -n 1)
+    if [ -n "$DL_IMG" ]; then
+      BASE_N=$(basename "$DL_IMG")
+      mv "$DL_IMG" "$PIC_DIR/$BASE_N"
+      TARGET_IMG="$PIC_DIR/$BASE_N"
+      echo -e "${G}[OK] Original saved: Pictures/$BASE_N${N}"
+    else
+      echo -e "${R}[ERR] Failed to download image from URL.${N}"
+    fi
+    rm -rf "$TMP_IMG_DIR"
+  elif [[ "$img_src" == "02" || "$img_src" == "2" ]]; then
+    read -p "$(echo -e "${Y}Search image name (or [Enter] for latest 15): ${N}")" iq
+    if [ -n "$iq" ]; then
+      mapfile -t IMG_LIST < <(find -L ~/storage/shared -path "*/Android/data" -prune -o -path "*/Android/obb" -prune -o -type f \( -iname "*${iq}*.jpg" -o -iname "*${iq}*.jpeg" -o -iname "*${iq}*.png" -o -iname "*${iq}*.webp" \) -print 2>/dev/null | head -n 15)
+    else
+      mapfile -t IMG_LIST < <(find -L ~/storage/shared -path "*/Android/data" -prune -o -path "*/Android/obb" -prune -o -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print 2>/dev/null | head -n 15)
+    fi
+    if [ ${#IMG_LIST[@]} -eq 0 ]; then
+      echo -e "${R}[ERR] No matching images found.${N}"
       return
     fi
+    for i in "${!IMG_LIST[@]}"; do
+      printf "${C}║${W} [%02d] %s${N}\n" $((i+1)) "${IMG_LIST[$i]#$HOME/storage/shared/}"
+    done
+    read -p "$(echo -e "${Y}Select image number: ${N}")" inum
+    if [[ "$inum" =~ ^[0-9]+$ ]] && [ "$inum" -ge 1 ] && [ "$inum" -le ${#IMG_LIST[@]} ]; then
+      TARGET_IMG="${IMG_LIST[$((inum-1))]}"
+    fi
   fi
+}
 
-  BEFORE_COUNT=$(cmd package list packages 2>/dev/null | wc -l)
-  echo -e "${C}[EXEC] Launching Android installer for: $(basename "$INSTALL_TARGET")${N}"
+image_submenu() {
+  echo -e "${C}╔══════════════════════════════════════════╗${N}"
+  echo -e "${C}║${G}     IMAGE, EXPO & WEB ASSET MATRIX       ${C}║${N}"
+  echo -e "${C}╠══════════════════════════════════════════╣${N}"
+  echo -e "${C}║${W} Original Full Resolution (URL)      ${C}║${N}"
+  echo -e "${C}║${W} 1:1 Square Crop (1080x1080)         ${C}║${N}"
+  echo -e "${C}║${W} 16:9 Widescreen (1920x1080)         ${C}║${N}"
+  echo -e "${C}║${W} 9:16 Vertical (1080x1920)           ${C}║${N}"
+  echo -e "${C}║${W} 4:5 Portrait (1080x1350)            ${C}║${N}"
+  echo -e "${C}║${W} Blurred-BG Fit (No Edge Cropping)   ${C}║${N}"
+  echo -e "${C}║${W} Convert Format & Compress Size      ${C}║${N}"
+  echo -e "${C}║${W} Strip EXIF / GPS Metadata (Privacy) ${C}║${N}"
+  echo -e "${C}║${W} Custom Ratio or Pixel Dimensions    ${C}║${N}"
+  echo -e "${C}║${G} Expo App Asset Pack (icon/splash)   ${C}║${N}"
+  echo -e "${C}║${G} Web / PWA Favicon & OG Banner Pack  ${C}║${N}"
+  echo -e "${C}║${C} Combine Multiple Images into PDF    ${C}║${N}"
+  echo -e "${C}║${R} Cancel                              ${C}║${N}"
+  echo -e "${C}╚══════════════════════════════════════════╝${N}"
+  read -p "$(echo -e "${Y}Select image operation [01-12]: ${N}")" im_choice
 
-  if ! termux-open "$INSTALL_TARGET"; then
-    echo -e "${R}[ERR] Failed to open installer. Enable 'Install unknown apps' for Termux.${N}"
-    [ -n "$TEMP_EXTRACT" ] && rm -rf "$TEMP_EXTRACT"
+  if [[ "$im_choice" == "00" || "$im_choice" == "0" || "$im_choice" == "13" ]]; then
+    echo -e "${D}Cancelled.${N}"
     return
   fi
 
-  read -p "$(echo -e "${Y}Complete the Android popup on screen, then press [Enter] to verify...${N}")"
-  AFTER_COUNT=$(cmd package list packages 2>/dev/null | wc -l)
-
-  if [ "$AFTER_COUNT" -gt "$BEFORE_COUNT" ]; then
-    echo -e "${G}[OK] SUCCESS: New app verified as installed on your device!${N}"
-    MSG="App installed successfully!"
-  else
-    echo -e "${Y}[NOTICE] Total installed app count did not change.${N}"
-    echo -e "${D} -> If you updated an existing app, installation succeeded.${N}"
-    echo -e "${D} -> If it failed or was a split .xapk bundle, install via File Manager or SAI.${N}"
-    MSG="APK check finished."
+  if [[ "$im_choice" == "01" || "$im_choice" == "1" ]]; then
+    local U="$1"
+    [ -z "$U" ] && read -p "$(echo -e "${Y}Paste image/post URL: ${N}")" U
+    [ -z "$U" ] && return
+    CLEAN_I="${U%%\?*}"
+    if [[ "${CLEAN_I,,}" =~ \.(jpg|jpeg|png|webp|gif|bmp)$ ]]; then
+      curl -L -A "Mozilla/5.0" -J -O --output-dir "$PIC_DIR" "$U"
+    elif command -v gallery-dl &> /dev/null; then
+      gallery-dl -d "$PIC_DIR" --directory "" "$U"
+    else
+      curl -L -A "Mozilla/5.0" -J -O --output-dir "$PIC_DIR" "$U"
+    fi
+    SCAN_TARGET="$PIC_DIR"
+    MSG="Original image(s) saved to Pictures!"
+    return
   fi
 
-  [ -n "$TEMP_EXTRACT" ] && rm -rf "$TEMP_EXTRACT"
-}
-
-download_doc() {
-  read -p "$(echo -e "${Y}Custom filename (no extension) or [Enter] for auto: ${N}")" custom_name
-  TMP_DIR=$(mktemp -d)
-  curl -L -J -O --output-dir "$TMP_DIR" "$1"
-  DOWNLOADED_FILE=$(ls -A "$TMP_DIR" | head -n 1)
-  if [ -n "$DOWNLOADED_FILE" ]; then
-    if [ -n "$custom_name" ]; then
-      EXT="${DOWNLOADED_FILE##*.}"
-      SAFE_NAME=$(echo "$custom_name" | tr -d '/\:*?"<>|')
-      [[ "$SAFE_NAME" == *.* ]] && FINAL_NAME="$SAFE_NAME" || FINAL_NAME="${SAFE_NAME}.${EXT}"
-    else
-      FINAL_NAME="$DOWNLOADED_FILE"
-    fi
-
-    if [[ "${FINAL_NAME,,}" == *.apk || "${FINAL_NAME,,}" == *.xapk ]]; then
-      mv "$TMP_DIR/$DOWNLOADED_FILE" "$APK_DIR/$FINAL_NAME"
-      echo -e "${G}[OK] Saved package to: Documents/APKs/$FINAL_NAME${N}"
-      read -p "$(echo -e "${Y}Install $FINAL_NAME right now? (y/n): ${N}")" inst_now
-      if [[ "$inst_now" == "y" || "$inst_now" == "Y" ]]; then
-        verify_and_install_apk "$APK_DIR/$FINAL_NAME"
-      fi
-      SCAN_TARGET="$APK_DIR"
-    else
-      mv "$TMP_DIR/$DOWNLOADED_FILE" "$DOC_DIR/$FINAL_NAME"
-      echo -e "${G}[OK] Saved as: $FINAL_NAME${N}"
-      MSG="Saved document: $FINAL_NAME"
-      SCAN_TARGET="$DOC_DIR"
-    fi
-  else
-    echo -e "${R}[ERR] Download failed.${N}"
-    MSG="Document download failed."
+  if [[ "$im_choice" == "12" ]]; then
+    read -p "$(echo -e "${Y}Enter folder path or press [Enter] for Pictures: ${N}")" pdf_src
+    [ -z "$pdf_src" ] && pdf_src="$PIC_DIR"
+    read -p "$(echo -e "${Y}Output PDF name (e.g., my_album): ${N}")" pdf_out
+    [ -z "$pdf_out" ] && pdf_out="combined_images"
+    python3 -c '
+import sys, glob, os
+try:
+    from PIL import Image
+except ImportError:
+    print("ERR_PIL")
+    sys.exit(1)
+src, out = sys.argv, sys.argv
+files = sorted(glob.glob(os.path.join(src, "*.jpg")) + glob.glob(os.path.join(src, "*.jpeg")) + glob.glob(os.path.join(src, "*.png")))
+if not files:
+    print("NO_FILES")
+    sys.exit(1)
+imgs = [Image.open(f).convert("RGB") for f in files[:30]]
+imgs.save(out, save_all=True, append_images=imgs)
+print(f"OK|{len(imgs)}")
+' "$pdf_src" "$DOC_DIR/${pdf_out%.pdf}.pdf"
+    SCAN_TARGET="$DOC_DIR"
+    MSG="Combined images into PDF in Documents!"
+    return
   fi
-  rm -rf "$TMP_DIR"
+
+  get_target_image "$1"
+  [ -z "$TARGET_IMG" ] && return
+  STEM="${TARGET_IMG%.*}"
+  EXT="${TARGET_IMG##*.}"
+
+  case $im_choice in
+    02|2)
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=1080:1080" "${STEM}_1x1.jpg"
+      echo -e "${G}[OK] Saved: $(basename "${STEM}_1x1.jpg")${N}"
+      ;;
+    03|3)
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih*16/9)':'min(ih,iw*9/16)',scale=1920:1080" "${STEM}_16x9.jpg"
+      echo -e "${G}[OK] Saved: $(basename "${STEM}_16x9.jpg")${N}"
+      ;;
+    04|4)
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih*9/16)':'min(ih,iw*16/9)',scale=1080:1920" "${STEM}_9x16.jpg"
+      echo -e "${G}[OK] Saved: $(basename "${STEM}_9x16.jpg")${N}"
+      ;;
+    05|5)
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih*4/5)':'min(ih,iw*5/4)',scale=1080:1350" "${STEM}_4x5.jpg"
+      echo -e "${G}[OK] Saved: $(basename "${STEM}_4x5.jpg")${N}"
+      ;;
+    06|6)
+      read -p "$(echo -e "${Y}Target frame (1 = 1:1 Square, 2 = 16:9 Wide, 3 = 9:16 Vertical): ${N}")" bf
+      W_OUT=1080; H_OUT=1080
+      [[ "$bf" == "2" ]] && W_OUT=1920 && H_OUT=1080
+      [[ "$bf" == "3" ]] && W_OUT=1080 && H_OUT=1920
+      ffmpeg -y -v error -i "$TARGET_IMG" -filter_complex "[0:v]scale=${W_OUT}:${H_OUT}:force_original_aspect_ratio=increase,crop=${W_OUT}:${H_OUT},boxblur=25:5[bg];[0:v]scale=${W_OUT}:${H_OUT}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2" "${STEM}_blurfit.jpg"
+      echo -e "${G}[OK] Saved: $(basename "${STEM}_blurfit.jpg")${N}"
+      ;;
+    07|7)
+      read -p "$(echo -e "${Y}Target format (jpg / png / webp): ${N}")" fmt
+      [ -z "$fmt" ] && fmt="jpg"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "scale='min(1440,iw)':-2" -q:v 4 "${STEM}_opt.${fmt,,}"
+      echo -e "${G}[OK] Saved compressed: $(basename "${STEM}_opt.${fmt,,}")${N}"
+      ;;
+    08|8)
+      ffmpeg -y -v error -i "$TARGET_IMG" -map_metadata -1 -c:v copy "${STEM}_clean.${EXT}" 2>/dev/null || ffmpeg -y -v error -i "$TARGET_IMG" -map_metadata -1 "${STEM}_clean.jpg"
+      echo -e "${G}[OK] EXIF/GPS metadata stripped!${N}"
+      ;;
+    09|9)
+      read -p "$(echo -e "${Y}Enter Width x Height (e.g., 800x600): ${N}")" dim
+      W_C="${dim%x*}"; H_C="${dim#*x}"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "scale=${W_C}:${H_C}:force_original_aspect_ratio=increase,crop=${W_C}:${H_C}" "${STEM}_${W_C}x${H_C}.jpg"
+      echo -e "${G}[OK] Saved custom size: ${W_C}x${H_C}${N}"
+      ;;
+    10)
+      read -p "$(echo -e "${Y}Splash background color hex (e.g., #FFFFFF or #000000): ${N}")" bg_hex
+      [ -z "$bg_hex" ] && bg_hex="#FFFFFF"
+      EXPO_OUT="$PIC_DIR/Expo_Assets"
+      mkdir -p "$EXPO_OUT"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=1024:1024" "$EXPO_OUT/icon.png"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=660:660,pad=1024:1024:(ow-iw)/2:(oh-ih)/2:color=0x00000000" "$EXPO_OUT/adaptive-icon.png"
+      ffmpeg -y -v error -f lavfi -i "color=c=${bg_hex}:s=1284x2778" -i "$TARGET_IMG" -filter_complex "[1:v]crop='min(iw,ih)':'min(iw,ih)',scale=520:520[logo];[0:v][logo]overlay=(W-w)/2:(H-h)/2" -frames:v 1 "$EXPO_OUT/splash-icon.png"
+      ffmpeg -y -v error -i "$EXPO_OUT/icon.png" -vf "scale=48:48" "$EXPO_OUT/favicon.png"
+      ffmpeg -y -v error -i "$EXPO_OUT/icon.png" -vf "scale=96:96" "$EXPO_OUT/notification-icon.png"
+      echo -e "${G}[OK] Expo asset pack generated in Pictures/Expo_Assets/!${N}"
+      ;;
+    11)
+      WEB_OUT="$PIC_DIR/Web_Assets"
+      mkdir -p "$WEB_OUT"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih*1200/630)':'min(ih,iw*630/1200)',scale=1200:630" "$WEB_OUT/og-banner-1200x630.png"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=512:512" "$WEB_OUT/icon-512.png"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=192:192" "$WEB_OUT/icon-192.png"
+      ffmpeg -y -v error -i "$TARGET_IMG" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=180:180" "$WEB_OUT/apple-touch-icon.png"
+      echo -e "${G}[OK] Web/PWA asset pack generated in Pictures/Web_Assets/!${N}"
+      ;;
+  esac
+  SCAN_TARGET="$PIC_DIR"
+  MSG="Image processing complete!"
 }
 
 online_app_installer() {
@@ -180,9 +261,9 @@ online_app_installer() {
   echo -e "${C}╔══════════════════════════════════════════╗${N}"
   echo -e "${C}║${G}   ONLINE REPOSITORY INSTALLER (apkeep)   ${C}║${N}"
   echo -e "${C}╠══════════════════════════════════════════╣${N}"
-  echo -e "${C}║${W} [01] APKPure Source (Mainstream Apps)    ${C}║${N}"
-  echo -e "${C}║${W} [02] F-Droid Source (Open-Source Apps)   ${C}║${N}"
-  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}║${W} APKPure Source (Mainstream Apps)    ${C}║${N}"
+  echo -e "${C}║${W} F-Droid Source (Open-Source Apps)   ${C}║${N}"
+  echo -e "${C}║${R} Cancel                              ${C}║${N}"
   echo -e "${C}╚══════════════════════════════════════════╝${N}"
   read -p "$(echo -e "${Y}Select source [01-02]: ${N}")" src_choice
 
@@ -247,15 +328,15 @@ video_submenu() {
   echo -e "${C}╔══════════════════════════════════════════╗${N}"
   echo -e "${C}║${G}     VIDEO / PLAYLIST MATRIX (ANTI-429)   ${C}║${N}"
   echo -e "${C}╠══════════════════════════════════════════╣${N}"
-  echo -e "${C}║${W} [01] Best Quality (MP4)                  ${C}║${N}"
-  echo -e "${C}║${W} [02] Best Quality + Subtitles            ${C}║${N}"
-  echo -e "${C}║${W} [03] 720p + Subtitles                    ${C}║${N}"
-  echo -e "${C}║${W} [04] 480p + Subtitles (Data Saver)       ${C}║${N}"
-  echo -e "${C}║${W} [05] 360p + Subtitles (Max Data Saver)   ${C}║${N}"
-  echo -e "${C}║${W} [06] Video Only (Silent Stream)          ${C}║${N}"
-  echo -e "${C}║${W} [07] Trim Specific Clip (Timestamp)      ${C}║${N}"
-  echo -e "${C}║${G} [08] Turbo Mode (-N 8 Parallel Frags)    ${C}║${N}"
-  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}║${W} Best Quality (MP4)                  ${C}║${N}"
+  echo -e "${C}║${W} Best Quality + Subtitles            ${C}║${N}"
+  echo -e "${C}║${W} 720p + Subtitles                    ${C}║${N}"
+  echo -e "${C}║${W} 480p + Subtitles (Data Saver)       ${C}║${N}"
+  echo -e "${C}║${W} 360p + Subtitles (Max Data Saver)   ${C}║${N}"
+  echo -e "${C}║${W} Video Only (Silent Stream)          ${C}║${N}"
+  echo -e "${C}║${W} Trim Specific Clip (Timestamp)      ${C}║${N}"
+  echo -e "${C}║${G} Turbo Mode (-N 8 Parallel Frags)    ${C}║${N}"
+  echo -e "${C}║${R} Cancel                              ${C}║${N}"
   echo -e "${C}╚══════════════════════════════════════════╝${N}"
   read -p "$(echo -e "${Y}Select stream [01-08]: ${N}")" v_choice
 
@@ -308,7 +389,7 @@ install_apk_scanner() {
     REL_PATH="${APK_LIST[$i]#$HOME/storage/shared/}"
     printf "${C}║${W} [%02d] %s${N}\n" $((i+1)) "$REL_PATH"
   done
-  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}║${R} Cancel                              ${C}║${N}"
   echo -e "${C}╚══════════════════════════════════════════╝${N}"
   read -p "$(echo -e "${Y}Select package number to install: ${N}")" apk_num
 
@@ -329,14 +410,14 @@ android_submenu() {
   echo -e "${C}╔══════════════════════════════════════════╗${N}"
   echo -e "${C}║${G}     ANDROID & NETWORK CONTROL PANEL      ${C}║${N}"
   echo -e "${C}╠══════════════════════════════════════════╣${N}"
-  echo -e "${C}║${W} [01] Network Mode (4G Only / Auto)       ${C}║${N}"
-  echo -e "${C}║${W} [02] App Info & Cache Manager (Search)   ${C}║${N}"
-  echo -e "${C}║${W} [03] Battery Optimization Settings       ${C}║${N}"
-  echo -e "${C}║${W} [04] Mobile Data & Data Saver            ${C}║${N}"
-  echo -e "${C}║${W} [05] Phone Storage & Space Cleaner       ${C}║${N}"
-  echo -e "${C}║${G} [06] Local APK Scanner (Search by Name)  ${C}║${N}"
-  echo -e "${C}║${G} [07] Online App Downloader (apkeep)      ${C}║${N}"
-  echo -e "${C}║${R} [00] Cancel                              ${C}║${N}"
+  echo -e "${C}║${W} Network Mode (4G Only / Auto)       ${C}║${N}"
+  echo -e "${C}║${W} App Info & Cache Manager (Search)   ${C}║${N}"
+  echo -e "${C}║${W} Battery Optimization Settings       ${C}║${N}"
+  echo -e "${C}║${W} Mobile Data & Data Saver            ${C}║${N}"
+  echo -e "${C}║${W} Phone Storage & Space Cleaner       ${C}║${N}"
+  echo -e "${C}║${G} Local APK Scanner (Search by Name)  ${C}║${N}"
+  echo -e "${C}║${G} Online App Downloader (apkeep)      ${C}║${N}"
+  echo -e "${C}║${R} Cancel                              ${C}║${N}"
   echo -e "${C}╚══════════════════════════════════════════╝${N}"
   read -p "$(echo -e "${Y}Execute module [01-07]: ${N}")" a_choice
 
@@ -370,7 +451,6 @@ CURRENT_URL="$1"
 FIRST_LOOP=1
 
 while true; do
-  # Auto-refresh URL from Android clipboard on subsequent loops (or if launched empty)
   if command -v termux-clipboard-get &> /dev/null; then
     CLIP_URL=$(termux-clipboard-get 2>/dev/null)
     if [[ "$CLIP_URL" =~ ^https?:// ]]; then
@@ -406,15 +486,15 @@ while true; do
       echo -e "${G}║${D} URL: (No link in clipboard yet)${N}"
     fi
     echo -e "${G}╠══════════════════════════════════════════╣${N}"
-    echo -e "${G}║${W} [01] Video / Playlist  -> (Matrix Menu)  ${G}║${N}"
-    echo -e "${G}║${W} [02] Audio Only (MP3)  -> Music Folder   ${G}║${N}"
-    echo -e "${G}║${W} [03] Video Thumbnail   -> Pictures       ${G}║${N}"
-    echo -e "${G}║${C} [04] Download Image(s) -> Pictures       ${G}║${N}"
-    echo -e "${G}║${W} [05] Document / PDF    -> Documents      ${G}║${N}"
-    echo -e "${G}║${W} [06] Batch Links Queue -> nano links.txt ${G}║${N}"
-    echo -e "${G}║${C} [07] Android & Network -> 4G, Apps, APKs ${G}║${N}"
-    echo -e "${G}║${Y} [08] Update yt-dlp & gallery-dl          ${G}║${N}"
-    echo -e "${G}║${R} [00] Exit Terminal                       ${G}║${N}"
+    echo -e "${G}║${W} Video / Playlist  -> (Matrix Menu)  ${G}║${N}"
+    echo -e "${G}║${W} Audio Only (MP3)  -> Music Folder   ${G}║${N}"
+    echo -e "${G}║${W} Video Thumbnail   -> Pictures       ${G}║${N}"
+    echo -e "${G}║${C} Image & Expo Pack -> (Asset Matrix) ${G}║${N}"
+    echo -e "${G}║${W} Document / PDF    -> Documents      ${G}║${N}"
+    echo -e "${G}║${W} Batch Links Queue -> nano links.txt ${G}║${N}"
+    echo -e "${G}║${C} Android & Network -> 4G, Apps, APKs ${G}║${N}"
+    echo -e "${G}║${Y} Update yt-dlp & gallery-dl          ${G}║${N}"
+    echo -e "${G}║${R} Exit Terminal                       ${G}║${N}"
     echo -e "${G}╚══════════════════════════════════════════╝${N}"
     read -p "$(echo -e "${Y}root@termux:~# ${N}")" choice
 
@@ -422,7 +502,7 @@ while true; do
       01|1) video_submenu "$CURRENT_URL" ;;
       02|2) run_ytdlp -4 -N 2 --download-archive "$AUDIO_ARCHIVE" -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$CURRENT_URL"; SCAN_TARGET="$MUSIC_DIR" ;;
       03|3) run_ytdlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$CURRENT_URL"; SCAN_TARGET="$PIC_DIR" ;;
-      04|4) download_images "$CURRENT_URL" ;;
+      04|4) image_submenu "$CURRENT_URL" ;;
       05|5) download_doc "$CURRENT_URL" ;;
       06|6)
         nano "$BATCH_FILE"
@@ -430,11 +510,11 @@ while true; do
           echo -e "${C}╔══════════════════════════════════════════╗${N}"
           echo -e "${C}║${G}    BATCH QUEUE RESOLUTION (-N 3 SAFE)    ${C}║${N}"
           echo -e "${C}╠══════════════════════════════════════════╣${N}"
-          echo -e "${C}║${W} [01] High Resolution (Best Quality)      ${C}║${N}"
-          echo -e "${C}║${W} [02] 720p (740p Cap)                     ${C}║${N}"
-          echo -e "${C}║${W} [03] 480p (420p Cap)                     ${C}║${N}"
-          echo -e "${C}║${W} [04] 360p (350p Cap)                     ${C}║${N}"
-          echo -e "${C}║${R} [00] Exit / Cancel                       ${C}║${N}"
+          echo -e "${C}║${W} High Resolution (Best Quality)      ${C}║${N}"
+          echo -e "${C}║${W} 720p (740p Cap)                     ${C}║${N}"
+          echo -e "${C}║${W} 480p (420p Cap)                     ${C}║${N}"
+          echo -e "${C}║${W} 360p (350p Cap)                     ${C}║${N}"
+          echo -e "${C}║${R} Exit / Cancel                       ${C}║${N}"
           echo -e "${C}╚══════════════════════════════════════════╝${N}"
           read -p "$(echo -e "${Y}Select batch resolution [01-04]: ${N}")" b_choice
           case $b_choice in
@@ -450,7 +530,7 @@ while true; do
         fi
         ;;
       07|7) android_submenu ;;
-      08|8) pip install -U yt-dlp gallery-dl ;;
+      08|8) pip install -U yt-dlp gallery-dl pillow ;;
       00|0|9) echo -e "${D}Session terminated.${N}"; break ;;
       *) echo -e "${R}[ERR] Invalid command.${N}" ;;
     esac
