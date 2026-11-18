@@ -55,6 +55,25 @@ run_ytdlp() {
   done
 }
 
+download_images() {
+  local IMG_URL="$1"
+  local CLEAN_IMG="${IMG_URL%%\?*}"
+
+  if [[ "${CLEAN_IMG,,}" =~ \.(jpg|jpeg|png|webp|gif|bmp)$ ]]; then
+    echo -e "${C}[IMG] Direct image URL detected! Saving to Pictures...${N}"
+    curl -L -A "Mozilla/5.0" -J -O --output-dir "$PIC_DIR" "$IMG_URL"
+    MSG="Image saved to Pictures!"
+  elif command -v gallery-dl &> /dev/null; then
+    echo -e "${C}[IMG] Extracting full-resolution image(s) via gallery-dl...${N}"
+    gallery-dl -d "$PIC_DIR" --directory "" "$IMG_URL"
+    MSG="Image(s) saved to Pictures!"
+  else
+    echo -e "${Y}[INFO] gallery-dl not installed. Falling back to curl...${N}"
+    curl -L -A "Mozilla/5.0" -J -O --output-dir "$PIC_DIR" "$IMG_URL"
+  fi
+  SCAN_TARGET="$PIC_DIR"
+}
+
 verify_and_install_apk() {
   local FILE_PATH="$1"
   local INSTALL_TARGET="$FILE_PATH"
@@ -347,38 +366,65 @@ android_submenu() {
   esac
 }
 
-CLEAN_URL="${1%%\?*}"
+CURRENT_URL="$1"
+FIRST_LOOP=1
 
-if [[ "$1" == *"t.me/"* ]]; then
-  echo -e "${C}[TG] Telegram link detected! Engaging 8-thread download...${N}"
-  tdl dl -u "$1" -d "$VIDEO_DIR" -t 8 --continue
-  SCAN_TARGET="$VIDEO_DIR"
-  MSG="Telegram download finished!"
-elif [[ "$CLEAN_URL" =~ \.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|apk|xapk|epub)$ ]]; then
-  echo -e "${C}[FILE] Direct file link detected! Routing automatically...${N}"
-  download_doc "$1"
-else
-  while true; do
+while true; do
+  # Auto-refresh URL from Android clipboard on subsequent loops (or if launched empty)
+  if command -v termux-clipboard-get &> /dev/null; then
+    CLIP_URL=$(termux-clipboard-get 2>/dev/null)
+    if [[ "$CLIP_URL" =~ ^https?:// ]]; then
+      if [ $FIRST_LOOP -eq 0 ] && [ "$CLIP_URL" != "$CURRENT_URL" ]; then
+        CURRENT_URL="$CLIP_URL"
+        echo -e "${G}[CLIP] New URL detected from clipboard!${N}"
+      elif [ -z "$CURRENT_URL" ]; then
+        CURRENT_URL="$CLIP_URL"
+      fi
+    fi
+  fi
+  FIRST_LOOP=0
+
+  CLEAN_URL="${CURRENT_URL%%\?*}"
+  SCAN_TARGET=""
+
+  if [[ "$CURRENT_URL" == *"t.me/"* ]]; then
+    echo -e "${C}[TG] Telegram link detected! Engaging 8-thread download...${N}"
+    tdl dl -u "$CURRENT_URL" -d "$VIDEO_DIR" -t 8 --continue
+    SCAN_TARGET="$VIDEO_DIR"
+    MSG="Telegram download finished!"
+  elif [[ "$CLEAN_URL" =~ \.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|apk|xapk|epub)$ ]]; then
+    echo -e "${C}[FILE] Direct file link detected! Routing automatically...${N}"
+    download_doc "$CURRENT_URL"
+  else
     echo -e "${G}╔══════════════════════════════════════════╗${N}"
     echo -e "${G}║${C}    TERMUX CYBER DOWNLOADER & TOOLKIT     ${G}║${N}"
     echo -e "${G}╠══════════════════════════════════════════╣${N}"
+    if [ -n "$CURRENT_URL" ]; then
+      SHORT_URL="${CURRENT_URL:0:36}"
+      echo -e "${G}║${D} URL: ${SHORT_URL}...${N}"
+    else
+      echo -e "${G}║${D} URL: (No link in clipboard yet)${N}"
+    fi
+    echo -e "${G}╠══════════════════════════════════════════╣${N}"
     echo -e "${G}║${W} [01] Video / Playlist  -> (Matrix Menu)  ${G}║${N}"
     echo -e "${G}║${W} [02] Audio Only (MP3)  -> Music Folder   ${G}║${N}"
-    echo -e "${G}║${W} [03] Thumbnail (JPG)   -> Pictures       ${G}║${N}"
-    echo -e "${G}║${W} [04] Document / PDF    -> Documents      ${G}║${N}"
-    echo -e "${G}║${W} [05] Batch Links Queue -> nano links.txt ${G}║${N}"
-    echo -e "${G}║${C} [06] Android & Network -> 4G, Apps, APKs ${G}║${N}"
-    echo -e "${G}║${Y} [07] Update yt-dlp Core                  ${G}║${N}"
+    echo -e "${G}║${W} [03] Video Thumbnail   -> Pictures       ${G}║${N}"
+    echo -e "${G}║${C} [04] Download Image(s) -> Pictures       ${G}║${N}"
+    echo -e "${G}║${W} [05] Document / PDF    -> Documents      ${G}║${N}"
+    echo -e "${G}║${W} [06] Batch Links Queue -> nano links.txt ${G}║${N}"
+    echo -e "${G}║${C} [07] Android & Network -> 4G, Apps, APKs ${G}║${N}"
+    echo -e "${G}║${Y} [08] Update yt-dlp & gallery-dl          ${G}║${N}"
     echo -e "${G}║${R} [00] Exit Terminal                       ${G}║${N}"
     echo -e "${G}╚══════════════════════════════════════════╝${N}"
     read -p "$(echo -e "${Y}root@termux:~# ${N}")" choice
 
     case $choice in
-      01|1) video_submenu "$1" ;;
-      02|2) run_ytdlp -4 -N 2 --download-archive "$AUDIO_ARCHIVE" -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$MUSIC_DIR" ;;
-      03|3) run_ytdlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$1"; SCAN_TARGET="$PIC_DIR" ;;
-      04|4) download_doc "$1" ;;
-      05|5)
+      01|1) video_submenu "$CURRENT_URL" ;;
+      02|2) run_ytdlp -4 -N 2 --download-archive "$AUDIO_ARCHIVE" -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$CURRENT_URL"; SCAN_TARGET="$MUSIC_DIR" ;;
+      03|3) run_ytdlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$CURRENT_URL"; SCAN_TARGET="$PIC_DIR" ;;
+      04|4) download_images "$CURRENT_URL" ;;
+      05|5) download_doc "$CURRENT_URL" ;;
+      06|6)
         nano "$BATCH_FILE"
         if [ -s "$BATCH_FILE" ]; then
           echo -e "${C}╔══════════════════════════════════════════╗${N}"
@@ -403,27 +449,27 @@ else
           echo -e "${D}~/links.txt is empty.${N}"
         fi
         ;;
-      06|6) android_submenu ;;
-      07|7) pip install -U yt-dlp ;;
-      00|0|8) echo -e "${D}Session terminated.${N}"; break ;;
+      07|7) android_submenu ;;
+      08|8) pip install -U yt-dlp gallery-dl ;;
+      00|0|9) echo -e "${D}Session terminated.${N}"; break ;;
       *) echo -e "${R}[ERR] Invalid command.${N}" ;;
     esac
+  fi
 
-    echo ""
-    read -p "$(echo -e "${Y}Continue to Main Menu? (y/n): ${N}")" cont_choice
-    if [[ "$cont_choice" != "y" && "$cont_choice" != "Y" ]]; then
-      break
-    fi
-  done
-fi
+  if [ -n "$SCAN_TARGET" ] && command -v termux-media-scan &> /dev/null; then
+    termux-media-scan -r "$SCAN_TARGET"
+  fi
 
-if [ -n "$SCAN_TARGET" ] && command -v termux-media-scan &> /dev/null; then
-  termux-media-scan -r "$SCAN_TARGET"
-fi
+  if command -v termux-notification &> /dev/null; then
+    termux-notification --title "Termux Cyber Toolkit" --content "${MSG:-Task completed!}" --sound
+  fi
 
-if command -v termux-notification &> /dev/null; then
-  termux-notification --title "Termux Cyber Toolkit" --content "${MSG:-Task completed!}" --sound
-fi
+  echo ""
+  read -p "$(echo -e "${Y}Continue to Main Menu? (y/n): ${N}")" cont_choice
+  if [[ "$cont_choice" != "y" && "$cont_choice" != "Y" ]]; then
+    break
+  fi
+done
 
 command -v termux-wake-unlock &> /dev/null && termux-wake-unlock
 
