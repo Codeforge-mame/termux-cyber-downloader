@@ -15,6 +15,7 @@ PIC_DIR=~/storage/pictures
 DOC_DIR=~/storage/shared/Documents
 APK_DIR=~/storage/shared/Documents/APKs
 ARCHIVE_FILE=~/.yt-dlp-archive.txt
+AUDIO_ARCHIVE=~/.yt-dlp-audio-archive.txt
 BATCH_FILE=~/links.txt
 
 mkdir -p "$VIDEO_DIR" "$MUSIC_DIR" "$PIC_DIR" "$DOC_DIR" "$APK_DIR"
@@ -27,30 +28,28 @@ BASE_FLAGS="-4 -N 2 --sleep-interval 3 --max-sleep-interval 8 --download-archive
 BATCH_FLAGS="-4 -N 3 --sleep-interval 5 --max-sleep-interval 12 --download-archive $ARCHIVE_FILE"
 SUB_FLAGS="--write-subs --write-auto-subs --sub-lang en --embed-subs"
 
-smart_ytdlp() {
+run_ytdlp() {
   while true; do
-    TMP_LOG=$(mktemp)
-    smart_ytdlp "$@" 2>&1 | tee "$TMP_LOG"
-    EXIT_CODE=${PIPESTATUS}
-    if grep -qE "HTTP Error 429|Too Many Requests" "$TMP_LOG"; then
-      rm -f "$TMP_LOG"
+    yt-dlp "$@"
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
       echo ""
       echo -e "${R}╔══════════════════════════════════════════╗${N}"
-      echo -e "${R}║${Y}   [!] YOUTUBE 429 RATE LIMIT DETECTED    ${R}║${N}"
+      echo -e "${R}║${Y}  [!] DOWNLOAD INTERRUPTED (CODE $EXIT_CODE)       ${R}║${N}"
       echo -e "${R}╠══════════════════════════════════════════╣${N}"
+      echo -e "${R}║${W} If YouTube blocked with 429 Rate Limit:  ${R}║${N}"
       echo -e "${R}║${W} 1. Turn Airplane Mode ON for 10 seconds  ${R}║${N}"
       echo -e "${R}║${W} 2. Turn Airplane Mode OFF for fresh IP   ${R}║${N}"
-      echo -e "${R}║${G} 3. Press [Enter] below to auto-resume    ${R}║${N}"
+      echo -e "${R}║${G} 3. Press [Enter] to retry or [q] to quit ${R}║${N}"
       echo -e "${R}╚══════════════════════════════════════════╝${N}"
-      command -v termux-notification &> /dev/null && termux-notification --title "429 Rate Limit Paused" --content "Toggle Airplane Mode 10s, then press Enter in Termux to resume!" --sound
-      read -p "$(echo -e "${Y}Press [Enter] after toggling Airplane Mode (or type q to abort): ${N}")" retry_ans
+      command -v termux-notification &> /dev/null && termux-notification --title "Download Interrupted" --content "Toggle Airplane Mode 10s if 429 occurred, then press Enter in Termux!" --sound
+      read -p "$(echo -e "${Y}Press [Enter] to retry (or type q to abort): ${N}")" retry_ans
       if [[ "$retry_ans" == "q" || "$retry_ans" == "Q" ]]; then
         echo -e "${D}Download aborted.${N}"
         break
       fi
-      echo -e "${C}[RETRY] Resuming download with fresh IP...${N}"
+      echo -e "${C}[RETRY] Resuming download...${N}"
     else
-      rm -f "$TMP_LOG"
       break
     fi
   done
@@ -73,7 +72,6 @@ verify_and_install_apk() {
     return
   fi
 
-  # Handle .xapk split-APK bundles automatically
   if [[ "${FILE_PATH,,}" == *.xapk ]]; then
     echo -e "${Y}[INFO] Split-APK bundle (.xapk) detected. Extracting base APK...${N}"
     TEMP_EXTRACT=$(mktemp -d)
@@ -82,9 +80,7 @@ verify_and_install_apk() {
     BASE_APK=$(find "$TEMP_EXTRACT" -maxdepth 2 -iname "*.apk" ! -iname "config.*" | head -n 1)
 
     if [ "$APK_COUNT" -gt 1 ]; then
-      echo -e "${Y}[WARN] This .xapk contains $APK_COUNT split APK modules (base + device configs).${N}"
-      echo -e "${D} -> Standard Android installer only installs single APKs.${N}"
-      echo -e "${D} -> Attempting base APK install. If it fails to open, install 'SAI (Split APKs Installer)' from F-Droid.${N}"
+      echo -e "${Y}[WARN] Split bundle contains $APK_COUNT APKs. Attempting base APK install...${N}"
     fi
 
     if [ -n "$BASE_APK" ]; then
@@ -114,7 +110,7 @@ verify_and_install_apk() {
   else
     echo -e "${Y}[NOTICE] Total installed app count did not change.${N}"
     echo -e "${D} -> If you updated an existing app, installation succeeded.${N}"
-    echo -e "${D} -> If it failed or was a split .xapk bundle, use SAI (Split APKs Installer) on Documents/APKs.${N}"
+    echo -e "${D} -> If it failed or was a split .xapk bundle, install via File Manager or SAI.${N}"
     MSG="APK check finished."
   fi
 
@@ -230,7 +226,7 @@ online_app_installer() {
 
 video_submenu() {
   echo -e "${C}╔══════════════════════════════════════════╗${N}"
-  echo -e "${C}║${G}     VIDEO / PLAYLIST MATRIX (-N 4)       ${C}║${N}"
+  echo -e "${C}║${G}     VIDEO / PLAYLIST MATRIX (ANTI-429)   ${C}║${N}"
   echo -e "${C}╠══════════════════════════════════════════╣${N}"
   echo -e "${C}║${W} [01] Best Quality (MP4)                  ${C}║${N}"
   echo -e "${C}║${W} [02] Best Quality + Subtitles            ${C}║${N}"
@@ -245,21 +241,21 @@ video_submenu() {
   read -p "$(echo -e "${Y}Select stream [01-08]: ${N}")" v_choice
 
   case $v_choice in
-    01|1) smart_ytdlp $BASE_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
-    02|2) smart_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
-    03|3) smart_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
-    04|4) smart_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
-    05|5) smart_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
-    06|6) smart_ytdlp $BASE_FLAGS -f "bestvideo[ext=mp4]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    01|1) run_ytdlp $BASE_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    02|2) run_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    03|3) run_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    04|4) run_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    05|5) run_ytdlp $BASE_FLAGS $SUB_FLAGS -f "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
+    06|6) run_ytdlp $BASE_FLAGS -f "bestvideo[ext=mp4]" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$VIDEO_DIR" ;;
     07|7)
       read -p "$(echo -e "${Y}Start time (e.g., 00:01:30): ${N}")" start_t
       read -p "$(echo -e "${Y}End time   (e.g., 00:02:15): ${N}")" end_t
-      smart_ytdlp -4 -N 4 --download-sections "*${start_t}-${end_t}" --force-keyframes-at-cuts -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "%(title)s [clip].%(ext)s" "$1"
+      run_ytdlp -4 -N 2 --download-sections "*${start_t}-${end_t}" --force-keyframes-at-cuts -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "%(title)s [clip].%(ext)s" "$1"
       SCAN_TARGET="$VIDEO_DIR"
       ;;
     08|8)
       echo -e "${G}[TURBO] Engaging 8 parallel fragment streams (-N 8)...${N}"
-      smart_ytdlp -4 -N 8 --download-archive "$ARCHIVE_FILE" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"
+      run_ytdlp -4 -N 8 --download-archive "$ARCHIVE_FILE" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" "$1"
       SCAN_TARGET="$VIDEO_DIR"
       ;;
     00|0|9) echo -e "${D}Cancelled.${N}" ;;
@@ -273,6 +269,7 @@ install_apk_scanner() {
 
   CLEAN_Q="${apk_query%.apk}"
   CLEAN_Q="${CLEAN_Q%.xapk}"
+
   if [ -n "$CLEAN_Q" ]; then
     mapfile -t APK_LIST < <(find -L ~/storage/shared -path "*/Android/data" -prune -o -path "*/Android/obb" -prune -o -type f \( -iname "*${CLEAN_Q}*.apk" -o -iname "*${CLEAN_Q}*.xapk" \) -print 2>/dev/null)
   else
@@ -362,60 +359,61 @@ elif [[ "$CLEAN_URL" =~ \.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|apk|xapk|ep
   download_doc "$1"
 else
   while true; do
-  echo -e "${G}╔══════════════════════════════════════════╗${N}"
-  echo -e "${G}║${C}    TERMUX CYBER DOWNLOADER & TOOLKIT     ${G}║${N}"
-  echo -e "${G}╠══════════════════════════════════════════╣${N}"
-  echo -e "${G}║${W} [01] Video / Playlist  -> (Matrix Menu)  ${G}║${N}"
-  echo -e "${G}║${W} [02] Audio Only (MP3)  -> Music Folder   ${G}║${N}"
-  echo -e "${G}║${W} [03] Thumbnail (JPG)   -> Pictures       ${G}║${N}"
-  echo -e "${G}║${W} [04] Document / PDF    -> Documents      ${G}║${N}"
-  echo -e "${G}║${W} [05] Batch Links Queue -> nano links.txt ${G}║${N}"
-  echo -e "${G}║${C} [06] Android & Network -> 4G, Apps, APKs ${G}║${N}"
-  echo -e "${G}║${Y} [07] Update smart_ytdlp Core                  ${G}║${N}"
-  echo -e "${G}║${R} [00] Exit Terminal                       ${G}║${N}"
-  echo -e "${G}╚══════════════════════════════════════════╝${N}"
-  read -p "$(echo -e "${Y}root@termux:~# ${N}")" choice
+    echo -e "${G}╔══════════════════════════════════════════╗${N}"
+    echo -e "${G}║${C}    TERMUX CYBER DOWNLOADER & TOOLKIT     ${G}║${N}"
+    echo -e "${G}╠══════════════════════════════════════════╣${N}"
+    echo -e "${G}║${W} [01] Video / Playlist  -> (Matrix Menu)  ${G}║${N}"
+    echo -e "${G}║${W} [02] Audio Only (MP3)  -> Music Folder   ${G}║${N}"
+    echo -e "${G}║${W} [03] Thumbnail (JPG)   -> Pictures       ${G}║${N}"
+    echo -e "${G}║${W} [04] Document / PDF    -> Documents      ${G}║${N}"
+    echo -e "${G}║${W} [05] Batch Links Queue -> nano links.txt ${G}║${N}"
+    echo -e "${G}║${C} [06] Android & Network -> 4G, Apps, APKs ${G}║${N}"
+    echo -e "${G}║${Y} [07] Update yt-dlp Core                  ${G}║${N}"
+    echo -e "${G}║${R} [00] Exit Terminal                       ${G}║${N}"
+    echo -e "${G}╚══════════════════════════════════════════╝${N}"
+    read -p "$(echo -e "${Y}root@termux:~# ${N}")" choice
 
-  case $choice in
-    01|1) video_submenu "$1" ;;
-    02|2) smart_ytdlp -4 -N 4 --download-archive ~/.yt-dlp-audio-archive.txt -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$MUSIC_DIR" ;;
-    03|3) smart_ytdlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$1"; SCAN_TARGET="$PIC_DIR" ;;
-    04|4) download_doc "$1" ;;
-    05|5)
-      nano "$BATCH_FILE"
-      if [ -s "$BATCH_FILE" ]; then
-        echo -e "${C}╔══════════════════════════════════════════╗${N}"
-        echo -e "${C}║${G}    BATCH QUEUE RESOLUTION (-N 8 TURBO)   ${C}║${N}"
-        echo -e "${C}╠══════════════════════════════════════════╣${N}"
-        echo -e "${C}║${W} [01] High Resolution (Best Quality)      ${C}║${N}"
-        echo -e "${C}║${W} [02] 720p (740p Cap)                     ${C}║${N}"
-        echo -e "${C}║${W} [03] 480p (420p Cap)                     ${C}║${N}"
-        echo -e "${C}║${W} [04] 360p (350p Cap)                     ${C}║${N}"
-        echo -e "${C}║${R} [00] Exit / Cancel                       ${C}║${N}"
-        echo -e "${C}╚══════════════════════════════════════════╝${N}"
-        read -p "$(echo -e "${Y}Select batch resolution [01-04]: ${N}")" b_choice
-        case $b_choice in
-          01|1) smart_ytdlp $BATCH_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
-          02|2) smart_ytdlp $BATCH_FLAGS -f "bestvideo[height<=740][ext=mp4]+bestaudio[ext=m4a]/best[height<=740]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
-          03|3) smart_ytdlp $BATCH_FLAGS -f "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
-          04|4) smart_ytdlp $BATCH_FLAGS -f "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
-          00|0|5) echo -e "${D}Batch cancelled. Links kept in ~/links.txt.${N}" ;;
-          *) echo -e "${R}[ERR] Invalid option.${N}" ;;
-        esac
-      else
-        echo -e "${D}~/links.txt is empty.${N}"
-      fi
-      ;;
-    06|6) android_submenu ;;
-    07|7) pip install -U smart_ytdlp ;;
-    00|0|8) echo -e "${D}Session terminated.${N}"; break ;;
-    *) echo -e "${R}[ERR] Invalid command.${N}" ;;
-  esac
-  echo ""
-  read -p "$(echo -e "${Y}Continue to Main Menu? (y/n): ${N}")" cont_choice
-  if [[ "$cont_choice" != "y" && "$cont_choice" != "Y" ]]; then
-    break
-  fi
+    case $choice in
+      01|1) video_submenu "$1" ;;
+      02|2) run_ytdlp -4 -N 2 --download-archive "$AUDIO_ARCHIVE" -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$1"; SCAN_TARGET="$MUSIC_DIR" ;;
+      03|3) run_ytdlp -4 --write-thumbnail --convert-thumbnails jpg --skip-download -P "$PIC_DIR" -o "%(title)s.%(ext)s" "$1"; SCAN_TARGET="$PIC_DIR" ;;
+      04|4) download_doc "$1" ;;
+      05|5)
+        nano "$BATCH_FILE"
+        if [ -s "$BATCH_FILE" ]; then
+          echo -e "${C}╔══════════════════════════════════════════╗${N}"
+          echo -e "${C}║${G}    BATCH QUEUE RESOLUTION (-N 3 SAFE)    ${C}║${N}"
+          echo -e "${C}╠══════════════════════════════════════════╣${N}"
+          echo -e "${C}║${W} [01] High Resolution (Best Quality)      ${C}║${N}"
+          echo -e "${C}║${W} [02] 720p (740p Cap)                     ${C}║${N}"
+          echo -e "${C}║${W} [03] 480p (420p Cap)                     ${C}║${N}"
+          echo -e "${C}║${W} [04] 360p (350p Cap)                     ${C}║${N}"
+          echo -e "${C}║${R} [00] Exit / Cancel                       ${C}║${N}"
+          echo -e "${C}╚══════════════════════════════════════════╝${N}"
+          read -p "$(echo -e "${Y}Select batch resolution [01-04]: ${N}")" b_choice
+          case $b_choice in
+            01|1) run_ytdlp $BATCH_FLAGS -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+            02|2) run_ytdlp $BATCH_FLAGS -f "bestvideo[height<=740][ext=mp4]+bestaudio[ext=m4a]/best[height<=740]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+            03|3) run_ytdlp $BATCH_FLAGS -f "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+            04|4) run_ytdlp $BATCH_FLAGS -f "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]" -P "$VIDEO_DIR" -o "$OUT_TMPL" -a "$BATCH_FILE" && > "$BATCH_FILE"; SCAN_TARGET="$VIDEO_DIR" ;;
+            00|0|5) echo -e "${D}Batch cancelled. Links kept in ~/links.txt.${N}" ;;
+            *) echo -e "${R}[ERR] Invalid option.${N}" ;;
+          esac
+        else
+          echo -e "${D}~/links.txt is empty.${N}"
+        fi
+        ;;
+      06|6) android_submenu ;;
+      07|7) pip install -U yt-dlp ;;
+      00|0|8) echo -e "${D}Session terminated.${N}"; break ;;
+      *) echo -e "${R}[ERR] Invalid command.${N}" ;;
+    esac
+
+    echo ""
+    read -p "$(echo -e "${Y}Continue to Main Menu? (y/n): ${N}")" cont_choice
+    if [[ "$cont_choice" != "y" && "$cont_choice" != "Y" ]]; then
+      break
+    fi
   done
 fi
 
@@ -430,4 +428,4 @@ fi
 command -v termux-wake-unlock &> /dev/null && termux-wake-unlock
 
 echo -e "${G}[OK] Done!${N}"
-sleep 3
+sleep 2
