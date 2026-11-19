@@ -10,7 +10,7 @@ main_menu() {
       3) trim_download "$url" ;; 4) audio_download "$url" ;;
       5) telegram_download "$url" ;; 6) queue_menu ;;
       7) apk_menu ;; 8) movie_search ;;
-      9) "$CD_ROOT/legacy/termux-url-opener" "$url" ;;
+      9) bash "$CD_ROOT/legacy/termux-url-opener" "$url" ;;
       h|H) bash "$CD_ROOT/help_script" ;;
       0|q|Q) break ;;
       *) warn "Unknown selection." ;;
