@@ -7,7 +7,9 @@ for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$
 done
 command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
 cleanup() { command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock; }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 if [[ "${1:-}" == "help" || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then bash "$ROOT/help_script"; exit $?; fi
 URL="${1:-}"
 if [ -z "$URL" ] && command -v termux-clipboard-get >/dev/null 2>&1; then
@@ -16,7 +18,8 @@ if [ -z "$URL" ] && command -v termux-clipboard-get >/dev/null 2>&1; then
 fi
 if [[ "$URL" == *t.me/* ]]; then
   telegram_download "$URL"
+  rc=$?
   notify_done "Telegram task finished."
-  exit $?
+  exit "$rc"
 fi
 main_menu "$URL"
