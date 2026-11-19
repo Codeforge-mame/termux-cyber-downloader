@@ -10,7 +10,7 @@ START
 
 SHARE MENU
   Share a supported link from another Android app to Termux.
-  Telegram t.me links are routed to the 8-thread Telegram downloader.
+  Telegram t.me links are routed to the Telegram downloader.
 
 VIDEO
   Choose a resolution: Best, 2160p, 1440p, 1080p, 720p, 480p, 360p.
@@ -18,8 +18,9 @@ VIDEO
   Trim asks for start/end timestamps and the selected resolution.
 
 TELEGRAM
-  tdl downloads with 8 threads. After downloading, you can optionally
-  create a lower-resolution FFmpeg copy. The original file is never replaced.
+  Choose 1, 2, 4, or 8 transfer threads before downloading.
+  After a successful download, optionally create a 1080p, 720p, 480p,
+  or 360p FFmpeg copy. The original file is never replaced.
 
 QUEUE
   Queue items run sequentially. Failed URLs remain in data/download_queue.txt.
@@ -28,6 +29,11 @@ QUEUE
 APK
   Direct APK URLs, APKPure, and F-Droid options are available.
   Only install APKs from sources you trust.
+
+MOVIE / SERIES
+  Search Google, JustWatch, or IMDb for legitimate sources.
+  Paste a source URL only when downloading is permitted by that source.
+  Choose a resolution and thread count before the yt-dlp download.
 
 LEGACY FEATURES
   The original launcher is retained in legacy/termux-url-opener for image,
