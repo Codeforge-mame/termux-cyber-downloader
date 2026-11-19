@@ -20,12 +20,36 @@ queue_run() {
   ok "Queue finished. Failed items retained: $failed"
 }
 queue_menu() {
-  banner "SEQUENTIAL DOWNLOAD QUEUE"
-  printf " 1) Add URL\n 2) Edit queue in nano\n 3) Show queue\n 4) Run queue\n 5) Clear queue\n 0) Back\n"
-  ask "Choose: " q
-  case "$q" in
-    1) queue_add ;; 2) require_cmd nano nano && nano "$QUEUE_FILE" ;;
-    3) cat -n "$QUEUE_FILE" ;; 4) queue_run ;;
-    5) ask "Clear all queued URLs? [y/N]: " confirm; [[ "$confirm" =~ ^[Yy]$ ]] && : > "$QUEUE_FILE" ;;
-  esac
+  local q confirm
+  while true; do
+    banner "SEQUENTIAL DOWNLOAD QUEUE"
+    printf " 1) Add URL\n 2) Edit queue in nano\n 3) Show queue\n 4) Run queue\n 5) Clear queue\n 0) Back\n"
+    ask "Choose: " q
+    case "$q" in
+      1) queue_add ;;
+      2) require_cmd nano nano && nano "$QUEUE_FILE" ;;
+      3)
+        if [ -s "$QUEUE_FILE" ]; then cat -n "$QUEUE_FILE"
+        else info "Queue is empty."
+        fi
+        ;;
+      4) queue_run ;;
+      5)
+        if [ ! -s "$QUEUE_FILE" ]; then
+          info "Queue is already empty."
+        else
+          ask "Clear all queued URLs? [y/N]: " confirm
+          if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            : > "$QUEUE_FILE"
+            ok "Queue cleared."
+          else
+            info "Queue was not changed."
+          fi
+        fi
+        ;;
+      0) return 0 ;;
+      *) warn "Invalid queue option." ;;
+    esac
+    printf "\n"
+  done
 }
