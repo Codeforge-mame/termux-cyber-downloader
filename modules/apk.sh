@@ -14,12 +14,30 @@ apk_menu() {
       ;;
     2|3)
       require_cmd apkeep apkeep || return 1
-      local pkg src confirm rc
-      ask "Android package ID (e.g. org.videolan.vlc): " pkg
+      local pkg src confirm rc app_query search_url
+      ask "App name OR package ID (e.g. VLC or org.videolan.vlc): " pkg
+      [ -n "$pkg" ] || { warn "No app name or package ID entered."; return 1; }
+
       if [[ ! "$pkg" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]; then
-        err "Enter the full Android package ID, not a short app name. Example: org.videolan.vlc"
-        return 1
+        app_query="$pkg"
+        search_url="$(python3 -c 'import sys,urllib.parse; print("https://www.google.com/search?q="+urllib.parse.quote_plus(sys.argv[1]+" Android app package name"))' "$app_query" 2>/dev/null)"
+        if [ -z "$search_url" ]; then
+          err "Could not prepare app search URL. Install python with: pkg install python"
+          return 1
+        fi
+        info "Searching for the app package ID: $app_query"
+        if command -v termux-open-url >/dev/null 2>&1; then
+          termux-open-url "$search_url" >/dev/null 2>&1
+        else
+          printf "Open this search in your browser: %s\n" "$search_url"
+        fi
+        ask "Enter the package ID shown in the search results: " pkg
+        if [[ ! "$pkg" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]; then
+          err "That is not a valid Android package ID."
+          return 1
+        fi
       fi
+
       mkdir -p "$APK_DIR"
       if [ "$a" = 2 ]; then
         warn "APKPure is a third-party source and may distribute modified or unsafe APKs."
