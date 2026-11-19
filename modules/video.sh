@@ -5,12 +5,12 @@ resolution_menu() {
   ask "Choose: " res_choice
   case "$res_choice" in
     1) FORMAT='bestvideo+bestaudio/best' ;;
-    2) FORMAT='best[height<=2160]/bestvideo[height<=2160]+bestaudio/best[height<=2160]' ;;
-    3) FORMAT='best[height<=1440]/bestvideo[height<=1440]+bestaudio/best[height<=1440]' ;;
-    4) FORMAT='best[height<=1080]/bestvideo[height<=1080]+bestaudio/best[height<=1080]' ;;
-    5) FORMAT='best[height<=720]/bestvideo[height<=720]+bestaudio/best[height<=720]' ;;
-    6) FORMAT='best[height<=480]/bestvideo[height<=480]+bestaudio/best[height<=480]' ;;
-    7) FORMAT='best[height<=360]/bestvideo[height<=360]+bestaudio/best[height<=360]' ;;
+    2) FORMAT='bestvideo[height<=2160]+bestaudio/best[height<=2160]/best' ;;
+    3) FORMAT='bestvideo[height<=1440]+bestaudio/best[height<=1440]/best' ;;
+    4) FORMAT='bestvideo[height<=1080]+bestaudio/best[height<=1080]/best' ;;
+    5) FORMAT='bestvideo[height<=720]+bestaudio/best[height<=720]/best' ;;
+    6) FORMAT='bestvideo[height<=480]+bestaudio/best[height<=480]/best' ;;
+    7) FORMAT='bestvideo[height<=360]+bestaudio/best[height<=360]/best' ;;
     *) return 1 ;;
   esac
 }
