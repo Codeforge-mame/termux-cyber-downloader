@@ -14,33 +14,44 @@ apk_menu() {
       ;;
     2|3)
       require_cmd apkeep apkeep || return 1
-      local pkg src confirm rc app_query search_url
-      ask "App name OR package ID (e.g. VLC or org.videolan.vlc): " pkg
-      [ -n "$pkg" ] || { warn "No app name or package ID entered."; return 1; }
+      local query pkg src confirm rc html found
+      ask "App name OR package ID (e.g. VLC, WhatsApp, or org.videolan.vlc): " query
+      [ -n "$query" ] || { warn "No app name or package ID entered."; return 1; }
+
+      case "${query,,}" in
+        x|twitter) pkg=com.twitter.android ;;
+        whatsapp) pkg=com.whatsapp ;;
+        telegram) pkg=org.telegram.messenger ;;
+        tiktok) pkg=com.zhiliaoapp.musically ;;
+        instagram) pkg=com.instagram.android ;;
+        facebook) pkg=com.facebook.katana ;;
+        chrome|google\ chrome) pkg=com.android.chrome ;;
+        vlc) pkg=org.videolan.vlc ;;
+        spotify) pkg=com.spotify.music ;;
+        sai) pkg=com.aefyr.sai.fdroid ;;
+        *) pkg="$query" ;;
+      esac
 
       if [[ ! "$pkg" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]; then
-        app_query="$pkg"
-        search_url="$(python3 -c 'import sys,urllib.parse; print("https://www.google.com/search?q="+urllib.parse.quote_plus(sys.argv[1]+" Android app package name"))' "$app_query" 2>/dev/null)"
-        if [ -z "$search_url" ]; then
-          err "Could not prepare app search URL. Install python with: pkg install python"
+        if [ "$a" = 3 ]; then
+          err "F-Droid requires the exact package ID. Try a known name such as VLC, or enter its package ID."
           return 1
         fi
-        info "Searching for the app package ID: $app_query"
-        if command -v termux-open-url >/dev/null 2>&1; then
-          termux-open-url "$search_url" >/dev/null 2>&1
+        info "Resolving '$query' through APKPure search..."
+        html="$(curl -fsSL -A "Mozilla/5.0" --max-time 15 --get --data-urlencode "q=$query" "https://apkpure.com" 2>/dev/null)"
+        found="$(printf '%s' "$html" | grep -oE '/[a-zA-Z0-9_-]+/[a-zA-Z0-9_]+\.[a-zA-Z0-9_.]+' | head -n 1 | cut -d'/' -f3)"
+        if [[ "$found" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]; then
+          pkg="$found"
+          ok "Matched package ID: $pkg"
         else
-          printf "Open this search in your browser: %s\n" "$search_url"
-        fi
-        ask "Enter the package ID shown in the search results: " pkg
-        if [[ ! "$pkg" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]; then
-          err "That is not a valid Android package ID."
+          err "Could not resolve that app name. Try its exact Android package ID."
           return 1
         fi
       fi
 
       mkdir -p "$APK_DIR"
       if [ "$a" = 2 ]; then
-        warn "APKPure is a third-party source and may distribute modified or unsafe APKs."
+        warn "APKPure is a third-party source. Verify the publisher and APK signature before installing."
         ask "Continue anyway? [y/N]: " confirm
         [[ "$confirm" =~ ^[Yy]$ ]] || return 0
         src=apk-pure
