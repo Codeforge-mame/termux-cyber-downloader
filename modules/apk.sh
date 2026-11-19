@@ -27,6 +27,7 @@ apk_menu() {
         [[ "$confirm" =~ ^[Yy]$ ]] || return 0
         src=apk-pure
         apkeep -a "$pkg" -d "$src" -o 'acknowledge_dangers=true' "$APK_DIR"
+        rc=$?
       else
         src=f-droid
         apkeep -a "$pkg" -d "$src" "$APK_DIR"
@@ -37,7 +38,6 @@ apk_menu() {
           rc=$?
         fi
       fi
-      rc=$?
       if [ "$rc" -eq 0 ]; then
         ok "apkeep finished. Check $APK_DIR for the downloaded package."
       else
