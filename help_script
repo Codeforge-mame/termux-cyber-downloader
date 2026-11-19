@@ -1,0 +1,40 @@
+#!/data/data/com.termux/files/usr/bin/bash
+ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
+source "$ROOT/lib/colors.sh"
+banner "TERMUX CYBER DOWNLOADER 2.0.1 HELP"
+cat <<'HELP'
+START
+  DL                         Open the interactive main menu
+  DL "https://..."           Open menu with a URL
+  help                       Show this help page (after installing alias)
+
+SHARE MENU
+  Share a supported link from another Android app to Termux.
+  Telegram t.me links are routed to the 8-thread Telegram downloader.
+
+VIDEO
+  Choose a resolution: Best, 2160p, 1440p, 1080p, 720p, 480p, 360p.
+  Turbo mode uses yt-dlp -N 8 where the source supports parallel fragments.
+  Trim asks for start/end timestamps and the selected resolution.
+
+TELEGRAM
+  tdl downloads with 8 threads. After downloading, you can optionally
+  create a lower-resolution FFmpeg copy. The original file is never replaced.
+
+QUEUE
+  Queue items run sequentially. Failed URLs remain in data/download_queue.txt.
+  Edit the queue from the menu or with nano.
+
+APK
+  Direct APK URLs, APKPure, and F-Droid options are available.
+  Only install APKs from sources you trust.
+
+LEGACY FEATURES
+  The original launcher is retained in legacy/termux-url-opener for image,
+  Expo assets, document, and Android utilities while these modules are migrated.
+
+DEPENDENCIES
+  pkg install git python ffmpeg termux-api nano curl
+  pip install -U yt-dlp
+  Install tdl and apkeep separately if you use Telegram/APK source features.
+HELP
