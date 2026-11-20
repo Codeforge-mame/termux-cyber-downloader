@@ -54,13 +54,15 @@ ask() {
 }
 # Retry a fixed menu choice. Confirmation prompts such as [y/N] keep using ask().
 ask_choice() {
-  local prompt="$1" __var="$2" allowed="$3" answer attempt
+  local prompt="$1" __var="$2" allowed="$3" answer attempt option
   for ((attempt=1; attempt<=3; attempt++)); do
     ask "$prompt" answer
-    if [[ " $allowed " == *" $answer "* ]]; then
-      printf -v "$__var" '%s' "$answer"
-      return 0
-    fi
+    for option in $allowed; do
+      if [[ "$answer" == "$option" ]]; then
+        printf -v "$__var" '%s' "$answer"
+        return 0
+      fi
+    done
     err "Invalid choice: ${answer:-<empty>}. Please choose one of: $allowed (attempt $attempt/3)."
   done
   warn "Maximum attempts reached. Returning to the previous menu."
@@ -68,14 +70,16 @@ ask_choice() {
 }
 
 ask_choice_default() {
-  local prompt="$1" __var="$2" allowed="$3" default="$4" answer attempt
+  local prompt="$1" __var="$2" allowed="$3" default="$4" answer attempt option
   for ((attempt=1; attempt<=3; attempt++)); do
     ask "$prompt" answer
     answer="${answer:-$default}"
-    if [[ " $allowed " == *" $answer "* ]]; then
-      printf -v "$__var" '%s' "$answer"
-      return 0
-    fi
+    for option in $allowed; do
+      if [[ "$answer" == "$option" ]]; then
+        printf -v "$__var" '%s' "$answer"
+        return 0
+      fi
+    done
     err "Invalid choice: $answer. Please choose one of: $allowed (attempt $attempt/3)."
   done
   warn "Maximum attempts reached. Returning to the previous menu."
