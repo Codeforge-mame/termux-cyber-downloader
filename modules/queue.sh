@@ -2,7 +2,7 @@
 
 queue_add() {
   local url="${1:-}"
-  [ -n "$url" ] || ask "URL to queue: " url
+  [ -n "$url" ] || ask_url "URL to queue: " url || return 1
   valid_url "$url" || { err "Invalid URL."; return 1; }
   printf '%s\n' "$url" >> "$QUEUE_FILE" || { err "Could not write to queue file."; return 1; }
   ok "Added to sequential queue."
