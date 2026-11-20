@@ -33,7 +33,9 @@ if (( GO_MAJOR < 1 || (GO_MAJOR == 1 && GO_MINOR < 25) || (GO_MAJOR == 1 && GO_M
   fail "tdl resume patch requires Go $MIN_GO or newer; found go$GO_VERSION. Update Termux golang with: pkg upgrade golang"
 fi
 
-BUILD_ROOT="$(mktemp -d "${TMPDIR:-$PREFIX/tmp}/tdl-resume-build.XXXXXX")"
+BUILD_TMP="${TMPDIR:-$PREFIX/tmp}"
+mkdir -p "$BUILD_TMP"
+BUILD_ROOT="$(mktemp -d "$BUILD_TMP/tdl-resume-build.XXXXXX")"
 cleanup() { rm -rf "$BUILD_ROOT"; }
 trap cleanup EXIT INT TERM
 
