@@ -1,15 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
 telegram_download() {
-  local url="$1" threads_choice threads rc res
+  local url="$1" threads_choice threads rc res telegram_dir="$VIDEO_DIR/Telegram"
   [ -n "$url" ] || ask "Telegram public link: " url
   [[ "$url" == *t.me/* ]] || { err "This does not look like a Telegram link."; return 1; }
   require_cmd tdl tdl || return 1
+  mkdir -p "$telegram_dir" || { err "Could not create Telegram folder: $telegram_dir"; return 1; }
 
   banner "TELEGRAM DOWNLOAD THREADS"
   printf " 1) 1 thread (most conservative)\n 2) 2 threads\n 3) 4 threads\n 4) 8 threads (fastest option)\n 0) Cancel\n"
   ask "Choose thread count [default 8]: " threads_choice
   case "$threads_choice" in
-    0) info "Telegram download cancelled."; return 0 ;;
+    0) info "Telegram download cancelled."; return 1 ;;
     1) threads=1 ;;
     2) threads=2 ;;
     3) threads=4 ;;
@@ -17,18 +18,21 @@ telegram_download() {
     *) warn "Invalid thread choice."; return 1 ;;
   esac
 
-  info "Starting Telegram download with $threads thread(s)..."
-  tdl dl -u "$url" -d "$VIDEO_DIR" -t "$threads" --continue
+  info "Starting Telegram download with $threads thread(s)."
+  info "Destination: $telegram_dir"
+  # tdl --continue resumes supported interrupted transfers when the same link is retried.
+  tdl dl -u "$url" -d "$telegram_dir" -t "$threads" --continue
   rc=$?
 
   if [ "$rc" -ne 0 ]; then
     err "Telegram download did not complete (exit code $rc)."
-    info "If it stalls, retry with fewer threads. Check that the channel is public and your tdl session can access the post."
+    info "Retry the same Telegram link to resume supported partial downloads. If it stalls, try fewer threads."
+    info "Check that the channel is public and your tdl session can access the post."
     return "$rc"
   fi
 
   record_history telegram "$url"
-  scan_media "$VIDEO_DIR"
+  scan_media "$telegram_dir"
   banner "OPTIONAL TELEGRAM VIDEO RESOLUTION"
   printf " 1) Keep original only\n 2) Create 1080p copy\n 3) Create 720p copy\n 4) Create 480p copy\n 5) Create 360p copy\n 0) Skip\n"
   ask "Choose: " res
