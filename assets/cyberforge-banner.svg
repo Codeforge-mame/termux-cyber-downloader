@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+<title id="title">CyberForge Android Download and Media Toolkit</title>
+<desc id="desc">A neon green and purple cybersecurity-inspired banner with a download shield and terminal motif.</desc>
+<defs>
+  <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#030712"/><stop offset=".55" stop-color="#071b20"/><stop offset="1" stop-color="#160b2b"/></linearGradient>
+  <linearGradient id="neon" x2="1"><stop stop-color="#00e676"/><stop offset=".55" stop-color="#b7ff00"/><stop offset="1" stop-color="#a855f7"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#00ff9c" stroke-opacity=".12"/></pattern>
+</defs>
+<rect width="1600" height="520" fill="url(#bg)"/><rect width="1600" height="520" fill="url(#grid)"/>
+<g fill="none" stroke="#00f5a0" stroke-opacity=".55" stroke-width="2"><path d="M0 70H260l40 40h170M1600 90h-250l-50 50h-130M0 440h330l50-50h170M1600 430h-280l-40-40h-190"/></g>
+<g transform="translate(105 105)" filter="url(#glow)">
+ <path d="M120 0 230 42v104c0 82-55 132-110 164C65 278 10 228 10 146V42Z" fill="#071b20" stroke="url(#neon)" stroke-width="9"/>
+ <path d="M120 65v105m-42-42 42 42 42-42M68 207h104" fill="none" stroke="#9aff00" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g font-family="monospace" fill="#00f5a0" opacity=".8"><text x="470" y="80" font-size="22">$ cyberforge --launch</text><text x="470" y="112" font-size="17">[ DOWNLOAD ] [ CONVERT ] [ AUTOMATE ] [ UPDATE ]</text></g>
+<text x="465" y="255" font-family="Arial, sans-serif" font-size="112" font-weight="900" letter-spacing="3" fill="#f4f7fb" stroke="#00e676" stroke-width="1">CYBER<tspan fill="#9aff00">FORGE</tspan></text>
+<path d="M470 285H1480" stroke="url(#neon)" stroke-width="5" filter="url(#glow)"/>
+<text x="475" y="345" font-family="Arial, sans-serif" font-size="38" font-weight="700" letter-spacing="5" fill="#e9e8ff">ANDROID DOWNLOAD &amp; MEDIA TOOLKIT</text>
+<g transform="translate(475 395)" font-family="monospace" font-size="20" fill="#b9ffd9">
+ <text x="0" y="0">▸ VIDEO</text><text x="180" y="0">▸ AUDIO</text><text x="355" y="0">▸ TELEGRAM</text><text x="600" y="0">▸ SUBTITLES</text><text x="835" y="0">▸ IMAGE TOOLS</text>
+ <text x="0" y="48" fill="#b68cff">▸ CYBER SECURITY THEME</text><text x="420" y="48" fill="#9aff00">▸ OPEN-SOURCE POWER</text>
+</g>
+<g fill="none" stroke="#a855f7" stroke-width="3" opacity=".9"><path d="M30 30h170l25 25M1570 30h-170l-25 25M30 490h170l25-25M1570 490h-170l-25-25"/></g>
+</svg>
