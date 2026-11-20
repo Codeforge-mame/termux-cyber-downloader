@@ -23,7 +23,7 @@ VIDEO
   Trim asks for start/end timestamps and the selected resolution.
 
 VIDEO EXTRAS
-  Download a video with English manual/automatic subtitles, or choose
+  Download the selected video together with available English subtitles, or choose
   video-only mode with Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p.
 
 TELEGRAM
@@ -55,7 +55,7 @@ APK DOWNLOAD
 NETWORK SHORTCUT
   Menu option 13 opens Android Radio Information.
   Choose LTE only for a 4G lock; restore Auto or LTE/WCDMA if calls or
-  mobile service are affected. The general Android control panel is removed.
+  mobile service are affected. The general Android control panel is removed.\n\nTOOL UPDATE CENTER\n  Menu option 14 updates Termux packages, yt-dlp, optional Python media tools,\n  and displays installed tool versions.
 
 MOVIE / SERIES
   Search Google, JustWatch, or IMDb for legitimate sources.
