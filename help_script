@@ -61,7 +61,8 @@ DOCUMENT MANAGER
   Search and inspection do not modify original files.
   Convert DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF with optional Pandoc.
   Selectable-text PDF conversion needs Poppler; scanned PDFs are not OCR'd.
-  Converted files are saved separately; originals are never overwritten.
+  Converted files are saved beside the source or in Documents if the source
+  location is read-only; originals are never overwritten.
   Copy/move destinations are limited to locations that pass a write-access test.
   Download a document or archive from a URL using the download option.
   OCR and document-content search are not included.
