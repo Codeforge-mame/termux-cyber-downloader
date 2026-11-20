@@ -15,7 +15,7 @@ SHARE MENU
 VIDEO
   Choose a resolution: Best, 2160p, 1440p, 1080p, 720p, 480p, 360p.
   Turbo mode uses yt-dlp -N 8 where the source supports parallel fragments.
-  Trim asks for start/end timestamps and the selected resolution.
+  Trim asks for start/end timestamps and the selected resolution.\n  Video Extras offers English subtitles (manual/automatic) or a video-only\n  stream without audio.
 
 TELEGRAM
   Choose 1, 2, 4, or 8 transfer threads before downloading.
