@@ -28,7 +28,7 @@ CyberForge is a menu-driven downloader and media toolkit built for **Termux on A
 - **Audio:** extract audio and save it as MP3.
 - **Playlists:** save playlist items into a named folder with numbered filenames.
 - **Telegram:** download public Telegram media with selectable 1, 2, 4, or 8 transfer threads using the standard `tdl` release.
-- **Documents and archives:** PDF, Office, ZIP, RAR, 7z, EPUB, TXT, CSV, APK, and XAPK.
+- **Document Manager:** search local filenames in accessible phone storage and detected SD/USB volumes, validate selected files, and download documents or archives from URLs. Original files remain untouched.
 - **Sequential queue:** process links one by one and keep failed or cancelled links for retry.
 - **APK downloads:** direct APK URLs and optional APKPure/F-Droid sources through `apkeep`.
 - **Image and media tools:** direct image and supported gallery downloads, video thumbnails, crops, resizing, conversion, compression, metadata stripping, Expo/Web asset packs, and image-to-PDF.
@@ -132,9 +132,22 @@ cyber-help
 | 9 | Playlist download |
 | 10 | Image & media tools |
 | 11 | Video extras: video + subtitles / video-only |
-| 12 | Document / file download |
+| 12 | Document Manager: local file search and document / file download |
 | 13 | Android 4G network settings |
 | 14 | Tool update center |
+
+## Document Manager
+
+Choose **12) Documents / files** from the main menu.
+
+- **Find local files:** search by filename or keyword, then choose internal shared storage, a detected removable volume, or all detected accessible locations.
+- **Numbered results:** select a result to inspect its full path, file size, extension, readability, and MIME type when the optional `file` command is available.
+- **Read-only search:** Phase 1 does not rename, move, overwrite, or modify the original file.
+- **Download a file:** the existing URL downloader remains available inside this menu and keeps its existing download behavior.
+
+Before searching, run `termux-setup-storage` and grant Android storage permission. Removable SD/USB storage is only searchable when Android exposes a mounted path that Termux can read. Android may restrict access to some folders, so the scanner reports only accessible locations.
+
+**Planned later phases:** search by file type, search inside document contents, and convert supported formats. Conversion is not included in Phase 1.
 
 ## Video + subtitle downloads
 
