@@ -137,7 +137,7 @@ document_selected_file_info() {
 # only after the user explicitly selects files and confirms an operation.
 document_manage_matches() {
   local title="$1" choice token start end n idx src dest base ext stem candidate suffix action
-  local selection copied moved deleted failed skipped=0
+  local selection copied moved deleted failed skipped=0 tmpcopy source_real target_real
   local -a visible=() selected=() tokens=()
   local -A seen=()
   local total="${#DOC_RESULT_FILES[@]}"
@@ -193,7 +193,7 @@ document_manage_matches() {
       [[ "$choice" == "DELETE" ]] || { info "Deletion cancelled."; return 0; }
       deleted=0; failed=0
       for src in "${selected[@]}"; do
-        if [ -f "$src" ] && [ -w "$src" ] && rm -- "$src" 2>/dev/null; then
+        if [ -f "$src" ] && rm -- "$src" 2>/dev/null; then
           ((deleted += 1)); ok "Deleted: ${src##*/}"
         else
           ((failed += 1)); err "Could not delete: $src"
@@ -236,6 +236,11 @@ document_manage_matches() {
         [ -f "$src" ] && [ -r "$src" ] || { ((failed += 1)); err "Source unavailable: $src"; continue; }
         base="${src##*/}"
         candidate="$dest/$base"
+        source_real="$(readlink -f "$src" 2>/dev/null)"
+        target_real="$(readlink -f "$candidate" 2>/dev/null)"
+        if [[ -n "$source_real" && "$source_real" == "$target_real" ]]; then
+          ((skipped += 1)); warn "Source and destination are the same file; skipped: $base"; continue
+        fi
         if [ -e "$candidate" ]; then
           printf '\nDestination already contains: %s\n' "$base"
           printf '%s\n' " s) Skip" " r) Keep both (automatic new filename)" " o) Replace existing file"
@@ -255,20 +260,26 @@ document_manage_matches() {
             *) ((skipped += 1)); info "Skipped: $base"; continue ;;
           esac
         fi
-        if cp -p -- "$src" "$candidate" 2>/dev/null && cmp -s -- "$src" "$candidate"; then
+        # Stage beside the destination, verify bytes, then atomically publish.
+        # This protects an existing destination if a copy is interrupted or fails.
+        tmpcopy="$(mktemp "$dest/.cyberforge-copy.XXXXXX" 2>/dev/null)" || {
+          ((failed += 1)); err "Could not create a temporary destination file."; continue;
+        }
+        if cp -p -- "$src" "$tmpcopy" 2>/dev/null && cmp -s -- "$src" "$tmpcopy" &&
+           mv -f -- "$tmpcopy" "$candidate" 2>/dev/null; then
           ((copied += 1))
           if [[ "$action" == "2" ]]; then
             if rm -- "$src" 2>/dev/null; then
               ((moved += 1)); ok "Moved: ${src##*/}"
             else
-              ((failed += 1)); err "Copied but could not remove original: $src"
+              ((failed += 1)); err "Copied and verified, but could not remove original: $src"
             fi
           else
             ok "Copied: ${src##*/}"
           fi
         else
-          rm -f -- "$candidate" 2>/dev/null
-          ((failed += 1)); err "Copy/verification failed: $src"
+          rm -f -- "$tmpcopy" 2>/dev/null
+          ((failed += 1)); err "Copy/verification failed; source retained: $src"
         fi
       done
       if [[ "$action" == "2" ]]; then
