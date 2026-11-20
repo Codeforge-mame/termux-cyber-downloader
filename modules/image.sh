@@ -53,8 +53,16 @@ image_pick_local() {
   [ "${#images[@]}" -gt 0 ] || { warn "No matching images found."; return 1; }
   local i selection
   for i in "${!images[@]}"; do printf " %2d) %s\n" "$((i+1))" "${images[$i]#"$HOME/storage/shared/"}"; done
-  ask "Select image number (0 = cancel): " selection
-  [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "${#images[@]}" ] || return 1
+  local attempt valid=0
+  for ((attempt=1; attempt<=3; attempt++)); do
+    ask "Select image number (0 = cancel): " selection
+    [[ "$selection" == "0" ]] && return 1
+    if [[ "$selection" =~ ^[0-9]+$ ]] && (( selection >= 1 && selection <= ${#images[@]} )); then
+      valid=1; break
+    fi
+    err "Choose an image number from 1 to ${#images[@]}, or 0 to cancel (attempt $attempt/3)."
+  done
+  (( valid == 1 )) || { warn "Maximum attempts reached."; return 1; }
   IMAGE_SOURCE="${images[$((selection-1))]}"
 }
 
