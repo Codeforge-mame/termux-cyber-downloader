@@ -46,6 +46,44 @@ info() { printf "%b[INFO]%b %s\n" "$C" "$N" "$*"; }
 ok() { printf "%b[OK]%b %s\n" "$G" "$N" "$*"; }
 warn() { printf "%b[WARN]%b %s\n" "$Y" "$N" "$*"; }
 err() { printf "%b[ERR]%b %s\n" "$R" "$N" "$*" >&2; }
+
+# Retry validated menu input without treating confirmation prompts as choices.
+# Usage: ask_choice "Prompt: " variable "1 2 3 0"
+ask_choice() {
+  local prompt="$1" __var="$2" allowed="$3" answer attempt
+  for ((attempt=1; attempt<=3; attempt++)); do
+    ask "$prompt" answer
+    if [[ " $allowed " == *" $answer "* ]]; then
+      printf -v "$__var" '%s' "$answer"
+      return 0
+    fi
+    err "Invalid choice: ${answer:-<empty>}. Please choose one of: $allowed (attempt $attempt/3)."
+  done
+  warn "Maximum attempts reached. Returning to the previous menu."
+  return 1
+}
+
+# Retry a value that must match a Bash regular expression.
+# Usage: ask_pattern "Prompt: " variable '^[0-9]+
+  local prompt="$1" __var="$2" answer
+  read -r -p "$(printf '%b' "${Y}$prompt${N}")" answer
+  printf -v "$__var" '%s' "$answer"
+}
+ "Enter a number."
+ask_pattern() {
+  local prompt="$1" __var="$2" pattern="$3" message="$4" answer attempt
+  for ((attempt=1; attempt<=3; attempt++)); do
+    ask "$prompt" answer
+    if [[ "$answer" =~ $pattern ]]; then
+      printf -v "$__var" '%s' "$answer"
+      return 0
+    fi
+    err "${message:-Invalid input.} (attempt $attempt/3)"
+  done
+  warn "Maximum attempts reached. Returning to the previous menu."
+  return 1
+}
+
 ask() {
   local prompt="$1" __var="$2" answer
   read -r -p "$(printf '%b' "${Y}$prompt${N}")" answer
