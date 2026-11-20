@@ -158,7 +158,7 @@ Choose **12) Document Manager** from the main menu.
 
 Storage discovery probes actual directory listing and write access. Locations are labelled `read/write` or `read only`; only writable locations are offered as copy/move destinations. Run `termux-setup-storage` and grant Termux file access if a mounted volume is missing. Android scoped-storage restrictions can still prevent access to some SD/USB folders, even when Android shows them in its file manager.
 
-Conversions create a separate output file beside the source. Existing output files are never silently overwritten, and the original document is left unchanged. OCR and document-content search are not included.
+Conversions create a separate output file beside the source when that folder is writable. If the source is on read-only storage, the converted file is saved in the internal Documents folder. Existing output files are never silently overwritten, and the original document is left unchanged. OCR and document-content search are not included.
 
 ## Video + subtitle downloads
 
