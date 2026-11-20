@@ -6,13 +6,14 @@ document_manager_menu() {
     printf '%s\n' \
       " 1) Find local files" \
       " 2) Search by file type" \
-      " 3) Download a document / file" \
+      " 3) Convert a document" \
+      " 4) Download a document / file" \
       " 0) Back to main menu"
-    ask_choice "documents> " choice "1 2 3 0 q Q" || { break; }
+    ask_choice "documents> " choice "1 2 3 4 0 q Q" || { break; }
     case "$choice" in
       1) document_local_search ;;
       2) document_local_type_search ;;
-      3) document_download "" ;;
+      3) document_conversion_menu ;;\n      4) document_download "" ;;
       0|q|Q) break ;;
       *) warn "Invalid selection."; continue ;;
     esac
