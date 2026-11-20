@@ -42,9 +42,9 @@ check_tool_updates() {
   banner "CHECK FOR TOOL UPDATES"
   info "Refreshing Termux package information..."
   pkg update || return $?
-  printf "\\n--- Termux packages with updates ---\\n"
+  printf "\n--- Termux packages with updates ---\n"
   apt list --upgradable 2>/dev/null || true
-  printf "\\n--- Python packages with updates ---\\n"
+  printf "\n--- Python packages with updates ---\n"
   python -m pip list --outdated || true
 }
 
