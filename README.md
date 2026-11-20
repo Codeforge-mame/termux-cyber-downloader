@@ -8,9 +8,10 @@ A modular Termux downloader with video, subtitles, video-only mode, playlists, d
 
 - Modular Bash layout with shared configuration, colors, and helper functions.
 - Video resolution selection, turbo downloads, timestamp trimming, English subtitles, and video-only downloads.
-- Dedicated playlist mode with each playlist saved in its own subfolder under Movies.
+- Playlist mode asks for a folder name and saves each playlist under its own folder in Movies.
 - Playlist-aware filenames with playlist index numbers.
-- Telegram public links auto-route; choose 1, 2, 4, or 8 transfer threads.
+- Telegram downloads are saved in Movies/Telegram, with selectable 1, 2, 4, or 8 transfer threads.
+- Telegram retries use tdl's `--continue` option to resume supported interrupted transfers.
 - Optional FFmpeg conversion after Telegram download creates a separate copy and retains the original.
 - Sequential queue with failed or cancelled URLs retained for retry.
 - Direct APK URL downloads plus APKPure/F-Droid options through apkeep. The local APK scanner and general Android control panel are not included.
@@ -55,7 +56,7 @@ source ~/.bashrc
 - Type `DL` or `dl` to open the interactive main menu.
 - Type `help` to open the help page.
 - Share a supported URL from another app to Termux.
-- Telegram `t.me` links auto-start the Telegram flow.
+- Telegram `t.me` links auto-start the Telegram flow and save under `Movies/Telegram`.
 - Supported document/file links auto-download to Documents or Documents/APKs.
 
 ### Video, subtitles, and playlists
@@ -64,7 +65,7 @@ Choose Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p. Turbo mode uses eight par
 
 The Video Extras menu offers English manual/automatic subtitle downloads with embedding where supported, plus video-only downloads without an audio stream.
 
-Use the dedicated Playlist option for playlist URLs. The downloader uses yt-dlp's playlist title and index output template, creating a separate folder for each playlist under `~/storage/movies`. The download archive prevents already-downloaded entries from being downloaded again.
+For playlists, enter a folder name before choosing the resolution. The playlist is saved in `~/storage/movies/<folder name>` with numbered filenames. Reuse the same folder name when retrying an interrupted playlist; yt-dlp's continue option and download archive help avoid restarting completed items.
 
 ### Documents and Android network settings
 
@@ -78,7 +79,7 @@ Add links from the menu, edit the queue in nano, and run it sequentially. Failed
 
 ### Telegram
 
-Requires an authenticated `tdl` installation. Choose 1, 2, 4, or 8 transfer threads. After a successful download, choose whether to keep the original or create a 1080p, 720p, 480p, or 360p FFmpeg copy; the original is not overwritten.
+Requires an authenticated `tdl` installation. Telegram media is saved in `~/storage/movies/Telegram`. Choose 1, 2, 4, or 8 transfer threads. If a transfer is interrupted, retry the same link; `tdl --continue` requests continuation of supported partial transfers. Actual resume behavior depends on tdl's handling of that media and Telegram's response. After a successful download, choose whether to keep the original or create a 1080p, 720p, 480p, or 360p FFmpeg copy; the original is not overwritten.
 
 ### Images and media
 
@@ -121,8 +122,9 @@ data/
 
 - yt-dlp `-N 8` controls concurrent fragment downloads, not a guaranteed eightfold speedup. Some sites do not support fragment concurrency.
 - Telegram's selected `tdl -t` value controls Telegram transfer workers. More threads do not guarantee higher speed; connection quality and Telegram/API behavior also matter.
+- Telegram resume is delegated to the installed tdl version through its `--continue` option; some media or partial states may still need to restart.
 - Social/gallery image downloads depend on the site's support in the installed gallery-dl version.
-- The Android Radio Information activity may differ across device manufacturers and Android versions. LTE-only mode may disable voice calls on some networks.
+- The Android Radio Information activity may differ across device manufacturers and Android versions. LTE-only mode may disable voice calls.
 - Movie search only helps locate legitimate availability; it does not download copyrighted movies from unauthorized sources.
 - This is a Termux Bash toolkit. Only use network or device functions on systems you own or are authorized to manage.
 
