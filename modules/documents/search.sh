@@ -572,6 +572,22 @@ document_convert_image_file() {
 
   "$image_cmd" "$src" -quality 90 "$output"
   rc=$?
+  # Some ImageMagick builds disable PDF writing by policy. Pillow is a safe
+  # fallback for single-image PDF output when it is already installed.
+  if (( rc != 0 )) && [[ "$target" == "pdf" ]] && command -v python >/dev/null 2>&1; then
+    rm -f -- "$output"
+    python - "$src" "$output" <<'PY'
+import sys
+try:
+    from PIL import Image
+except ImportError:
+    raise SystemExit(1)
+source, destination = sys.argv[1], sys.argv[2]
+with Image.open(source) as image:
+    image.convert("RGB").save(destination, "PDF", resolution=150)
+PY
+    rc=$?
+  fi
   if (( rc == 0 )) && [ -s "$output" ]; then
     ok "Converted image saved: $output"
     info "Original image was not modified."
