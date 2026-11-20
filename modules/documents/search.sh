@@ -241,6 +241,9 @@ document_manage_matches() {
         if [[ -n "$source_real" && "$source_real" == "$target_real" ]]; then
           ((skipped += 1)); warn "Source and destination are the same file; skipped: $base"; continue
         fi
+        if [ -d "$candidate" ]; then
+          ((skipped += 1)); warn "A directory with this filename already exists; skipped: $base"; continue
+        fi
         if [ -e "$candidate" ]; then
           printf '\nDestination already contains: %s\n' "$base"
           printf '%s\n' " s) Skip" " r) Keep both (automatic new filename)" " o) Replace existing file"
