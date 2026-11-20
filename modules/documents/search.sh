@@ -735,7 +735,212 @@ document_file_is_convertible() {
   local ext="$1"
   ext="${ext##*.}"
   ext="${ext,,}"
-  case "$ext" in docx|odt|epub|html|htm|md|txt|rtf|pdf|jpg|jpeg|png|webp|bmp|gif|tif|tiff) return 0 ;; *) return 1 ;; esac
+  case "$ext" in
+    docx|odt|epub|html|htm|md|txt|rtf|pdf|jpg|jpeg|png|webp|bmp|gif|tif|tiff|csv|xls|xlsx|ods|ppt|pptx|odp)
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Spreadsheet conversion: CSV <-> XLSX with openpyxl, or use LibreOffice
+# when available for XLS/XLSX/ODS and PDF interchange.
+document_convert_spreadsheet_file() {
+  local src="$1" ext="\${1##*.}" choice target output_dir filename output suffix probe
+  local office_cmd="" rc=1 sheet
+  local -a targets=()
+  ext="\${ext,,}"
+  if command -v libreoffice >/dev/null 2>&1; then office_cmd="libreoffice"
+  elif command -v soffice >/dev/null 2>&1; then office_cmd="soffice"
+  fi
+
+  if [[ -n "$office_cmd" ]]; then
+    for target in csv xlsx xls ods pdf; do
+      [[ "$target" == "$ext" ]] || targets+=("$target")
+    done
+  elif command -v python >/dev/null 2>&1; then
+    if ! python -c 'import openpyxl' >/dev/null 2>&1; then
+      warn "CSV/XLSX conversion needs openpyxl: python -m pip install openpyxl"
+      return 1
+    fi
+    case "$ext" in
+      csv) targets=(xlsx) ;;
+      xlsx) targets=(csv) ;;
+      *) warn "This spreadsheet format needs LibreOffice (XLS/ODS support)."; return 1 ;;
+    esac
+  else
+    warn "Spreadsheet conversion needs LibreOffice or Python with openpyxl."
+    return 1
+  fi
+
+  printf '\nAVAILABLE SPREADSHEET OUTPUT FORMATS\n'
+  for i in "\${!targets[@]}"; do printf ' %s) %s\n' "$((i + 1))" "\${targets[$i]^^}"; done
+  printf ' 0) Cancel\n'
+  local allowed="0"
+  for i in "\${!targets[@]}"; do allowed+=" $((i + 1))"; done
+  ask_choice "Convert \${src##*/} to: " choice "$allowed" || return 1
+  [[ "$choice" == "0" ]] && return 0
+  target="\${targets[$((choice - 1))]}"
+
+  output_dir="$DOC_DIR/Converted"
+  mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
+  probe="$(mktemp "$output_dir/.cyberforge-sheet.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable."; return 1; }
+  rm -f -- "$probe"
+  filename="\${src##*/}"; filename="\${filename%.*}"
+  output="$output_dir/\${filename}_converted.$target"
+  suffix=1
+  while [[ -e "$output" ]]; do output="$output_dir/\${filename}_converted_$suffix.$target"; ((suffix += 1)); done
+
+  if [[ -n "$office_cmd" ]]; then
+    local tmpdir generated
+    tmpdir="$(mktemp -d "$output_dir/.cyberforge-office.XXXXXX" 2>/dev/null)" || return 1
+    if "$office_cmd" --headless --convert-to "$target" --outdir "$tmpdir" "$src" >/dev/null 2>&1; then
+      generated="$tmpdir/\${filename}.$target"
+      if [[ -s "$generated" ]]; then mv -- "$generated" "$output" && rc=0; fi
+    fi
+    rm -rf -- "$tmpdir"
+  elif [[ "$ext" == "csv" && "$target" == "xlsx" ]]; then
+    python - "$src" "$output" <<'PY'
+import csv, sys
+from openpyxl import Workbook
+source, destination = sys.argv[1:3]
+book = Workbook()
+sheet = book.active
+with open(source, "r", encoding="utf-8-sig", newline="") as handle:
+    sample = handle.read(8192)
+    handle.seek(0)
+    try:
+        dialect = csv.Sniffer().sniff(sample)
+    except csv.Error:
+        dialect = csv.excel
+    for row in csv.reader(handle, dialect):
+        sheet.append(row)
+book.save(destination)
+PY
+    rc=$?
+  elif [[ "$ext" == "xlsx" && "$target" == "csv" ]]; then
+    local -a sheet_names=()
+    mapfile -t sheet_names < <(python - "$src" <<'PY'
+import sys
+from openpyxl import load_workbook
+book = load_workbook(sys.argv[1], read_only=True, data_only=True)
+for name in book.sheetnames:
+    print(name)
+book.close()
+PY
+)
+    if (( \${#sheet_names[@]} == 0 )); then err "No readable worksheet was found."; return 1; fi
+    if (( \${#sheet_names[@]} > 1 )); then
+      printf '\nWORKSHEETS\n'
+      for i in "\${!sheet_names[@]}"; do printf ' %s) %s\n' "$((i + 1))" "\${sheet_names[$i]}"; done
+      local sheet_allowed="0"
+      for i in "\${!sheet_names[@]}"; do sheet_allowed+=" $((i + 1))"; done
+      ask_choice "Choose worksheet to export: " choice "$sheet_allowed" || return 1
+      [[ "$choice" == "0" ]] && return 0
+      sheet="\${sheet_names[$((choice - 1))]}"
+    else
+      sheet="\${sheet_names[0]}"
+    fi
+    python - "$src" "$output" "$sheet" <<'PY'
+import csv, sys
+from openpyxl import load_workbook
+source, destination, sheet_name = sys.argv[1:4]
+book = load_workbook(source, read_only=True, data_only=True)
+sheet = book[sheet_name]
+with open(destination, "w", encoding="utf-8-sig", newline="") as handle:
+    writer = csv.writer(handle)
+    for row in sheet.iter_rows(values_only=True):
+        writer.writerow(["" if value is None else value for value in row])
+book.close()
+PY
+    rc=$?
+  fi
+
+  if (( rc == 0 )) && [[ -s "$output" ]]; then
+    info "Spreadsheet converted. The original workbook/file was not modified."
+    document_offer_conversion_destination "$output"
+    [[ -f "$output" ]] && ok "Converted file saved: $output"
+    return 0
+  fi
+  rm -f -- "$output"
+  err "Spreadsheet conversion failed. The source file remains unchanged."
+  return 1
+}
+
+# Presentation conversion uses LibreOffice for real format conversion.
+# Without it, python-pptx can export PPTX slide text to a plain TXT file.
+document_convert_presentation_file() {
+  local src="$1" ext="\${1##*.}" choice target output_dir filename output suffix probe
+  local office_cmd="" rc=1
+  local -a targets=()
+  ext="\${ext,,}"
+  if command -v libreoffice >/dev/null 2>&1; then office_cmd="libreoffice"
+  elif command -v soffice >/dev/null 2>&1; then office_cmd="soffice"
+  fi
+
+  if [[ -n "$office_cmd" ]]; then
+    for target in pptx odp ppt pdf; do
+      [[ "$target" == "$ext" ]] || targets+=("$target")
+    done
+  elif [[ "$ext" == "pptx" ]] && command -v python >/dev/null 2>&1 &&
+       python -c 'import pptx' >/dev/null 2>&1; then
+    targets=(txt)
+  else
+    warn "Presentation conversion needs LibreOffice. PPTX-to-TXT also works with: python -m pip install python-pptx"
+    return 1
+  fi
+
+  printf '\nAVAILABLE PRESENTATION OUTPUT FORMATS\n'
+  for i in "\${!targets[@]}"; do printf ' %s) %s\n' "$((i + 1))" "\${targets[$i]^^}"; done
+  printf ' 0) Cancel\n'
+  local allowed="0"
+  for i in "\${!targets[@]}"; do allowed+=" $((i + 1))"; done
+  ask_choice "Convert \${src##*/} to: " choice "$allowed" || return 1
+  [[ "$choice" == "0" ]] && return 0
+  target="\${targets[$((choice - 1))]}"
+
+  output_dir="$DOC_DIR/Converted"
+  mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
+  probe="$(mktemp "$output_dir/.cyberforge-presentation.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable."; return 1; }
+  rm -f -- "$probe"
+  filename="\${src##*/}"; filename="\${filename%.*}"
+  output="$output_dir/\${filename}_converted.$target"
+  suffix=1
+  while [[ -e "$output" ]]; do output="$output_dir/\${filename}_converted_$suffix.$target"; ((suffix += 1)); done
+
+  if [[ -n "$office_cmd" ]]; then
+    local tmpdir generated
+    tmpdir="$(mktemp -d "$output_dir/.cyberforge-office.XXXXXX" 2>/dev/null)" || return 1
+    if "$office_cmd" --headless --convert-to "$target" --outdir "$tmpdir" "$src" >/dev/null 2>&1; then
+      generated="$tmpdir/\${filename}.$target"
+      if [[ -s "$generated" ]]; then mv -- "$generated" "$output" && rc=0; fi
+    fi
+    rm -rf -- "$tmpdir"
+  else
+    python - "$src" "$output" <<'PY'
+import sys
+from pptx import Presentation
+source, destination = sys.argv[1:3]
+presentation = Presentation(source)
+with open(destination, "w", encoding="utf-8") as handle:
+    for number, slide in enumerate(presentation.slides, 1):
+        handle.write(f"Slide {number}\\n")
+        for shape in slide.shapes:
+            if getattr(shape, "has_text_frame", False) and shape.text.strip():
+                handle.write(shape.text.strip() + "\\n")
+        handle.write("\\n")
+PY
+    rc=$?
+  fi
+
+  if (( rc == 0 )) && [[ -s "$output" ]]; then
+    info "Presentation converted. The original file was not modified."
+    document_offer_conversion_destination "$output"
+    [[ -f "$output" ]] && ok "Converted file saved: $output"
+    return 0
+  fi
+  rm -f -- "$output"
+  err "Presentation conversion failed. The source file remains unchanged."
+  return 1
 }
 
 document_convert_file() {
@@ -744,8 +949,11 @@ document_convert_file() {
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
   document_file_is_convertible "$src" || { warn "Conversion is not supported for: $src"; return 1; }
   if document_file_is_image_convertible "$src"; then document_convert_image_file "$src"; return $?; fi
-
   ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
+  case "$ext" in
+    csv|xls|xlsx|ods) document_convert_spreadsheet_file "$src"; return $? ;;
+    ppt|pptx|odp) document_convert_presentation_file "$src"; return $? ;;
+  esac
   if [[ "$ext" == "pdf" ]]; then
     command -v pdftotext >/dev/null 2>&1 || { warn "PDF extraction requires Poppler: pkg install poppler"; info "Scanned PDFs are not supported without OCR."; return 1; }
     targets=(txt docx odt html markdown)
