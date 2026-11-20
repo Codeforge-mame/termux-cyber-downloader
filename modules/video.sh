@@ -81,7 +81,7 @@ video_subtitle_download() {
   mkdir -p "$subtitle_dir" || { err "Could not create subtitle download folder."; return 1; }
   info "Downloading the video and English subtitles together..."
   info "The video will be saved in: $subtitle_dir"
-  run_ytdlp --ignore-config --no-simulate --no-skip-download -4 -N 2 \
+  run_ytdlp --ignore-config --no-simulate -4 -N 2 \
     --sleep-interval 2 --max-sleep-interval 5 \
     --write-subs --write-auto-subs --sub-langs "en.*,en" \
     --convert-subs srt --embed-subs --embed-metadata \
