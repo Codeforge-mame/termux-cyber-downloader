@@ -5,7 +5,7 @@ ROOT="$SCRIPT_DIR"
 if [ ! -r "$ROOT/lib/colors.sh" ] && [ -r "$HOME/termux-cyber-downloader/lib/colors.sh" ]; then
   ROOT="$HOME/termux-cyber-downloader"
 fi
-for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$ROOT/modules/video.sh" "$ROOT/modules/documents.sh" "$ROOT/modules/image.sh" "$ROOT/modules/telegram.sh" "$ROOT/modules/queue.sh" "$ROOT/modules/apk.sh" "$ROOT/modules/movie.sh" "$ROOT/modules/main_menu.sh" "$ROOT/modules/tools.sh"; do
+for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$ROOT/modules/video.sh" "$ROOT/modules/documents.sh" "$ROOT/modules/documents/search.sh" "$ROOT/modules/documents/menu.sh" "$ROOT/modules/image.sh" "$ROOT/modules/telegram.sh" "$ROOT/modules/queue.sh" "$ROOT/modules/apk.sh" "$ROOT/modules/movie.sh" "$ROOT/modules/main_menu.sh" "$ROOT/modules/tools.sh"; do
   [ -r "$file" ] || { printf '[ERR] Missing toolkit file: %s\n' "$file" >&2; exit 1; }
   source "$file"
 done
