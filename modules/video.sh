@@ -29,7 +29,7 @@ playlist_download() {
   local url="${1:-}" folder_name playlist_dir rc
   [ -n "$url" ] || ask_url "Playlist URL: " url || return 1
   valid_url "$url" || { err "Please enter a valid http(s) playlist URL."; return 1; }
-  ask "Folder name for this playlist (inside Movies): " folder_name
+  ask_nonempty "Folder name for this playlist (inside Movies): " folder_name || return 1
   folder_name="$(printf '%s' "$folder_name" | tr -cd '[:alnum:] _.-' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | cut -c1-80)"
   case "$folder_name" in
     ""|"."|"..") err "Please enter a valid folder name."; return 1 ;;
