@@ -93,6 +93,11 @@ DEPENDENCIES
   Optional image tools: pip install -U gallery-dl pillow
   Install apkeep separately if you use APK source features.
 
+INPUT VALIDATION
+  Invalid menu choices and validated inputs show a clear error and allow up to
+  three attempts. After the third invalid attempt, the current operation returns
+  to its previous menu. Yes/no confirmation prompts keep their normal behavior.
+
 DISPLAY COMPATIBILITY
   The interface detects terminal width and uses a safe fallback when terminal
   size tools are unavailable. Narrow screens use compact, single-column menus.
