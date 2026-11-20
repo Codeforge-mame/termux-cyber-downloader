@@ -59,7 +59,7 @@ tools_update_menu() {
     printf " 5) Show installed tool versions\n"
     printf " 6) Check which tools need updates\n"
     printf " 0) Back\n"
-    ask "Choose: " choice
+    ask_choice "Choose: " choice "1 2 3 4 5 6 0" || { return 0; }
     case "$choice" in
       1)
         ask "Update all Termux packages now? [y/N]: " confirm
@@ -77,7 +77,7 @@ tools_update_menu() {
       5) tool_versions ;;
       6) check_tool_updates ;;
       0|"") return 0 ;;
-      *) warn "Unknown update option." ;;
+      *) warn "Invalid selection."; continue ;;
     esac
     printf "\n"
     ask "Return to update center? [Y/n]: " confirm
