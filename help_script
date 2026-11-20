@@ -48,5 +48,6 @@ IMAGE & MEDIA TOOLS
 DEPENDENCIES
   pkg install git python ffmpeg termux-api nano curl
   pip install -U yt-dlp
+  Optional image tools: pip install -U gallery-dl pillow
   Install tdl and apkeep separately if you use Telegram/APK source features.
 HELP
