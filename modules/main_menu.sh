@@ -33,7 +33,7 @@ main_menu() {
       9) playlist_download "$url" ;;
       10) image_menu "$url" ;;
       11) video_extras_menu "$url" ;;
-      12) document_download "$url" ;;
+      12) document_manager_menu ;;
       13) open_4g_network_settings ;;
       14) tools_update_menu ;;
       h|H) bash "$CD_ROOT/help_script" ;;
