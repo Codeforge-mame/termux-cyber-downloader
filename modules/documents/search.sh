@@ -5,44 +5,48 @@ DOC_SEARCH_LABELS=()
 DOC_SEARCH_PATHS=()
 
 document_search_add_root() {
-  local label="$1" path="$2" resolved existing
-  [ -d "$path" ] && [ -r "$path" ] && [ -x "$path" ] || return 0
+  local label="$1" path="$2" resolved existing probe writable=0
+  [ -d "$path" ] || return 0
   resolved="$(readlink -f "$path" 2>/dev/null)"
   [ -n "$resolved" ] || resolved="$path"
   for existing in "${DOC_SEARCH_PATHS[@]}"; do
     [ "$existing" = "$resolved" ] && return 0
   done
-  DOC_SEARCH_LABELS+=("$label")
+  # Probe actual access: Android scoped storage can deny access despite -r/-x.
+  ls -A -- "$resolved" >/dev/null 2>&1 || return 0
+  probe="$(mktemp "$resolved/.cyberforge-access.XXXXXX" 2>/dev/null)" && {
+    writable=1
+    rm -f -- "$probe" 2>/dev/null || writable=0
+  }
   DOC_SEARCH_PATHS+=("$resolved")
+  DOC_SEARCH_LABELS+=("$label")
+  DOC_SEARCH_WRITABLE+=("$writable")
 }
-
 document_search_discover_roots() {
   DOC_SEARCH_LABELS=()
   DOC_SEARCH_PATHS=()
-
+  DOC_SEARCH_WRITABLE=()
   document_search_add_root "Internal shared storage" "$HOME/storage/shared"
   document_search_add_root "Internal shared storage" "/storage/emulated/0"
   document_search_add_root "Internal shared storage" "/sdcard"
 
-  # Android removable volumes are commonly mounted as /storage/XXXX-XXXX.
-  local path name
-  for path in /storage/*; do
-    [ -d "$path" ] || continue
+  # Termux storage setup may create external-N links for removable media.
+  local path name index
+  for index in {1..8}; do
+    path="$HOME/storage/external-$index"
+    [ -e "$path" ] || continue
     name="${path##*/}"
-    case "$name" in
-      emulated|self) continue ;;
-    esac
     document_search_add_root "Removable storage: $name" "$path"
   done
 
-  # Some devices expose USB/OTG volumes through these mount locations.
-  for path in /mnt/media_rw/* "$HOME/storage/external-1"; do
+  # Android SD cards commonly mount as /storage/XXXX-XXXX; USB/OTG paths vary.
+  for path in /storage/* /mnt/media_rw/* /mnt/user/*; do
     [ -d "$path" ] || continue
     name="${path##*/}"
-    document_search_add_root "External / USB storage: $name" "$path"
+    case "$name" in emulated|self|media_rw|user|pass_through) continue ;; esac
+    document_search_add_root "SD / external storage: $name" "$path"
   done
 }
-
 document_file_category() {
   local ext="${1,,}"
   case "$ext" in
