@@ -60,12 +60,15 @@ DOCUMENT MANAGER
   a separate confirmation. Move verifies the copied bytes before deleting source.
   Search and inspection do not modify original files.
   Convert supported selected DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF files
-  with Pandoc; selectable-text PDF conversion needs Poppler; JPG, PNG, WebP, BMP,
-  GIF and TIFF conversion needs ImageMagick. Scanned PDFs are not OCR'd.
-  There is no separate converter menu. Read/Open previews text in the terminal,
-  extracts selectable PDF text, or opens media with Termux:API.
-  Converted files are saved beside the source or in Documents if the source
-  location is read-only; originals are never overwritten.
+  with Pandoc; selectable-text PDF extraction needs Poppler; image conversion
+  needs ImageMagick. Image formats exclude the source format from target choices.
+  Images can also be converted to PDF. Document-to-PDF needs Pandoc plus a PDF
+  engine such as Tectonic, XeLaTeX, LuaLaTeX, or WeasyPrint. Scanned PDFs are
+  not OCR'd.
+  Read/Open is offered only when exactly one file is selected. It previews text
+  in the terminal, extracts selectable PDF text, or opens media with Termux:API.
+  All converted files go to Documents/Converted, regardless of source location.
+  Originals are never modified and existing converted files are not overwritten.
   Copy/move destinations are limited to locations that pass a write-access test.
   Download a document or archive from a URL using the download option.
   OCR and document-content search are not included.
