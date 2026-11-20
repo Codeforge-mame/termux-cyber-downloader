@@ -217,19 +217,28 @@ document_manage_matches() {
       ;;
     1|2)
       document_search_discover_roots
-      if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
-        err "No accessible destination storage was detected."; return 1
-      fi
-      printf '\nDESTINATION LOCATIONS\n'
+      local -a writable_paths=() writable_labels=()
       for idx in "${!DOC_SEARCH_PATHS[@]}"; do
-        printf ' %s) %s\n    %s\n' "$((idx + 1))" "${DOC_SEARCH_LABELS[$idx]}" "${DOC_SEARCH_PATHS[$idx]}"
+        if [[ "${DOC_SEARCH_WRITABLE[$idx]}" == "1" ]]; then
+          writable_paths+=("${DOC_SEARCH_PATHS[$idx]}")
+          writable_labels+=("${DOC_SEARCH_LABELS[$idx]}")
+        fi
       done
-      printf ' 0) Cancel\n'
+      if (( ${#writable_paths[@]} == 0 )); then
+        err "No writable storage destination was detected."
+        info "Check Android storage permission and run termux-setup-storage again."
+        return 1
+      fi
+      printf '\\nWRITABLE DESTINATION LOCATIONS\\n'
+      for idx in "${!writable_paths[@]}"; do
+        printf ' %s) %s\\n    %s\\n' "$((idx + 1))" "${writable_labels[$idx]}" "${writable_paths[$idx]}"
+      done
+      printf ' 0) Cancel\\n'
       allowed="0"
-      for idx in "${!DOC_SEARCH_PATHS[@]}"; do allowed+=" $((idx + 1))"; done
+      for idx in "${!writable_paths[@]}"; do allowed+=" $((idx + 1))"; done
       ask_choice "Choose destination location: " choice "$allowed" || return 1
       [[ "$choice" == "0" ]] && return 0
-      dest="${DOC_SEARCH_PATHS[$((choice - 1))]}"
+      dest="${writable_paths[$((choice - 1))]}"
       ask "Destination folder (blank = selected location): " base
       if [[ -n "$base" ]]; then
         if [[ "$base" = /* ]]; then dest="$base"; else dest="$dest/$base"; fi
@@ -325,7 +334,7 @@ document_local_search() {
 
   printf '\nSEARCH LOCATIONS\n'
   for index in "${!DOC_SEARCH_PATHS[@]}"; do
-    printf ' %s) %s\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
+    printf ' %s) %s [%s]\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}" "$([ "${DOC_SEARCH_WRITABLE[$index]}" = "1" ] && printf "read/write" || printf "read only")"
   done
   printf ' a) All detected accessible locations\n'
   printf ' 0) Cancel\n'
