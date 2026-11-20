@@ -18,7 +18,8 @@ video_download() {
   local url="$1" mode="$2" speed=2
   [ -n "$url" ] || ask "Video URL: " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
-  resolution_menu || return 0
+  # Return non-zero on cancellation so queue mode keeps this URL for later.
+  resolution_menu || return 1
   [ "$mode" = turbo ] && speed=8
   info "Downloading with up to $speed parallel fragments where supported."
   run_ytdlp -4 -N "$speed" --continue --download-archive "$ARCHIVE_FILE" -f "$FORMAT" --merge-output-format mp4 -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
