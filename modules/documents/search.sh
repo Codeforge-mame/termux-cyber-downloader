@@ -1,0 +1,217 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Read-only local filename search for CyberForge Document Manager.
+
+DOC_SEARCH_LABELS=()
+DOC_SEARCH_PATHS=()
+
+document_search_add_root() {
+  local label="$1" path="$2" resolved existing
+  [ -d "$path" ] && [ -r "$path" ] && [ -x "$path" ] || return 0
+  resolved="$(readlink -f "$path" 2>/dev/null)"
+  [ -n "$resolved" ] || resolved="$path"
+  for existing in "${DOC_SEARCH_PATHS[@]}"; do
+    [ "$existing" = "$resolved" ] && return 0
+  done
+  DOC_SEARCH_LABELS+=("$label")
+  DOC_SEARCH_PATHS+=("$resolved")
+}
+
+document_search_discover_roots() {
+  DOC_SEARCH_LABELS=()
+  DOC_SEARCH_PATHS=()
+
+  document_search_add_root "Internal shared storage" "$HOME/storage/shared"
+  document_search_add_root "Internal shared storage" "/storage/emulated/0"
+  document_search_add_root "Internal shared storage" "/sdcard"
+
+  # Android removable volumes are commonly mounted as /storage/XXXX-XXXX.
+  local path name
+  for path in /storage/*; do
+    [ -d "$path" ] || continue
+    name="${path##*/}"
+    case "$name" in
+      emulated|self) continue ;;
+    esac
+    document_search_add_root "Removable storage: $name" "$path"
+  done
+
+  # Some devices expose USB/OTG volumes through these mount locations.
+  for path in /mnt/media_rw/* "$HOME/storage/external-1"; do
+    [ -d "$path" ] || continue
+    name="${path##*/}"
+    document_search_add_root "External / USB storage: $name" "$path"
+  done
+}
+
+document_file_category() {
+  local ext="${1,,}"
+  case "$ext" in
+    pdf|doc|docx|odt|rtf|txt|md|html|htm) printf 'Document' ;;
+    csv|xls|xlsx|ods) printf 'Spreadsheet' ;;
+    ppt|pptx|odp) printf 'Presentation' ;;
+    jpg|jpeg|png|webp|bmp|gif|tif|tiff) printf 'Image' ;;
+    *) printf 'Other / unsupported for planned conversion' ;;
+  esac
+}
+
+document_file_is_known() {
+  local ext="${1,,}"
+  case "$ext" in
+    pdf|doc|docx|odt|rtf|txt|md|html|htm|csv|xls|xlsx|ods|ppt|pptx|odp|jpg|jpeg|png|webp|bmp|gif|tif|tiff)
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+document_file_size() {
+  local path="$1" bytes
+  bytes="$(stat -c '%s' -- "$path" 2>/dev/null)"
+  if [[ "$bytes" =~ ^[0-9]+$ ]]; then
+    if (( bytes >= 1073741824 )); then
+      awk -v n="$bytes" 'BEGIN { printf "%.2f GB", n/1073741824 }'
+    elif (( bytes >= 1048576 )); then
+      awk -v n="$bytes" 'BEGIN { printf "%.2f MB", n/1048576 }'
+    elif (( bytes >= 1024 )); then
+      awk -v n="$bytes" 'BEGIN { printf "%.1f KB", n/1024 }'
+    else
+      printf '%s bytes' "$bytes"
+    fi
+  else
+    printf 'Unknown'
+  fi
+}
+
+document_selected_file_info() {
+  local path="$1" name ext mime category size
+  [ -f "$path" ] && [ -r "$path" ] || {
+    err "The selected file no longer exists or is not readable."
+    return 1
+  }
+
+  name="${path##*/}"
+  ext="${name##*.}"
+  [ "$ext" = "$name" ] && ext="" || ext="${ext,,}"
+  category="$(document_file_category "$ext")"
+  size="$(document_file_size "$path")"
+
+  banner "FILE VALIDATION"
+  printf 'Name:       %s\n' "$name"
+  printf 'Location:   %s\n' "$path"
+  printf 'Size:       %s\n' "$size"
+  printf 'Extension:  %s\n' "${ext:-none}"
+  printf 'Category:   %s\n' "$category"
+  printf 'Readable:   YES\n'
+  if command -v file >/dev/null 2>&1; then
+    mime="$(file -b --mime-type -- "$path" 2>/dev/null)"
+    [ -n "$mime" ] && printf 'MIME type:  %s\n' "$mime"
+  fi
+
+  if document_file_is_known "$ext"; then
+    ok "Recognized file type. It can be considered by the conversion phase."
+    info "Conversion is not enabled in Phase 1; the original file has not been changed."
+  else
+    warn "This file type is not in the planned conversion list yet."
+    info "The file remains untouched."
+  fi
+
+  printf '\n'
+  printf '1) Open with Android (if termux-open is available)\n'
+  printf '0) Back\n'
+  local action
+  ask "Select action: " action
+  case "$action" in
+    1)
+      if command -v termux-open >/dev/null 2>&1; then
+        termux-open "$path"
+      else
+        warn "termux-open is unavailable. Install the Termux:API app and package if you need Android open-with support."
+      fi
+      ;;
+    0|"") ;;
+    *) warn "Unknown selection." ;;
+  esac
+}
+
+document_local_search() {
+  local keyword choice index selected root tmp count=0 shown=0
+  local -a roots=() labels=() matches=()
+  document_search_discover_roots
+
+  if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
+    err "No accessible shared or removable storage was detected."
+    info "Run termux-setup-storage and grant Android storage permission, then try again."
+    return 1
+  fi
+
+  banner "FIND LOCAL FILES"
+  ask "Filename or keyword: " keyword
+  keyword="${keyword#" "}"
+  keyword="${keyword%" "}"
+  [ -n "$keyword" ] || { warn "Enter a filename or keyword."; return 1; }
+
+  printf '\nSEARCH LOCATIONS\n'
+  for index in "${!DOC_SEARCH_PATHS[@]}"; do
+    printf ' %s) %s\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
+  done
+  printf ' a) All detected accessible locations\n'
+  printf ' 0) Cancel\n'
+  ask "Choose location: " choice
+
+  case "$choice" in
+    0|"") return 0 ;;
+    a|A)
+      roots=("${DOC_SEARCH_PATHS[@]}")
+      labels=("${DOC_SEARCH_LABELS[@]}")
+      ;;
+    *)
+      if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#DOC_SEARCH_PATHS[@]} )); then
+        roots=("${DOC_SEARCH_PATHS[$((choice - 1))]}")
+        labels=("${DOC_SEARCH_LABELS[$((choice - 1))]}")
+      else
+        warn "Invalid storage selection."
+        return 1
+      fi
+      ;;
+  esac
+
+  tmp="$(mktemp 2>/dev/null)" || { err "Could not create a temporary search file."; return 1; }
+  info "Searching filenames for: $keyword"
+  for index in "${!roots[@]}"; do
+    info "Scanning: ${labels[$index]}"
+    find "${roots[$index]}" -type f -iname "*$keyword*" -print0 2>/dev/null >> "$tmp"
+  done
+
+  while IFS= read -r -d '' selected; do
+    matches+=("$selected")
+  done < "$tmp"
+  rm -f "$tmp"
+
+  count="${#matches[@]}"
+  if (( count == 0 )); then
+    warn "No matching filenames were found in the selected accessible locations."
+    info "Storage Android does not expose to Termux cannot be searched by this scanner."
+    return 0
+  fi
+
+  banner "SEARCH RESULTS"
+  printf 'Found %s matching file(s).\n' "$count"
+  for index in "${!matches[@]}"; do
+    (( shown >= 100 )) && break
+    printf '\n%s) %s\n' "$((index + 1))" "${matches[$index]##*/}"
+    printf '   %s\n' "${matches[$index]}"
+    ((shown += 1))
+  done
+  if (( count > shown )); then
+    warn "Showing the first $shown results. Refine your keyword to narrow the list."
+  fi
+
+  printf '\n'
+  ask "Select a result number (0 to return): " choice
+  [[ "$choice" == "0" || -z "$choice" ]] && return 0
+  if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= shown )); then
+    document_selected_file_info "${matches[$((choice - 1))]}"
+  else
+    warn "Invalid result number."
+    return 1
+  fi
+}
