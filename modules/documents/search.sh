@@ -221,11 +221,11 @@ document_manage_matches() {
     if document_file_is_convertible "$src"; then can_convert=1; break; fi
   done
   if (( can_convert )); then
-    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 4) Convert supported selected files" " 0) Cancel"
-    ask_choice "Choose operation: " action "1 2 3 4 0" || return 1
+    printf '%s\\n' " 1) Copy" " 2) Move" " 3) Delete" " 4) Convert supported selected files" " 5) Read / open selected files" " 0) Cancel"
+    ask_choice "Choose operation: " action "1 2 3 4 5 0" || return 1
   else
-    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
-    ask_choice "Choose operation: " action "1 2 3 0" || return 1
+    printf '%s\\n' " 1) Copy" " 2) Move" " 3) Delete" " 5) Read / open selected files" " 0) Cancel"
+    ask_choice "Choose operation: " action "1 2 3 5 0" || return 1
   fi
 
   case "$action" in
@@ -241,6 +241,9 @@ document_manage_matches() {
         fi
       done
       printf '\nConversion summary: %s converted, %s skipped/failed.\n' "$convert_count" "$convert_failed"
+      ;;
+    5)
+      for src in "${selected[@]}"; do document_read_file "$src" || warn "Could not read/open: ${src##*/}"; printf '\n'; done
       ;;
     3)
       printf '\n'
@@ -516,18 +519,88 @@ document_local_type_search() {
 }
 
 
+# Image conversion uses ImageMagick; only common raster formats are offered.
+document_file_is_image_convertible() {
+  local ext="$1"
+  ext="${ext##*.}"
+  ext="${ext,,}"
+  case "$ext" in jpg|jpeg|png|webp|bmp|gif|tif|tiff) return 0 ;; *) return 1 ;; esac
+}
+
+document_convert_image_file() {
+  local src="$1" choice ext target output_dir filename stem output suffix probe image_cmd rc
+  [ -f "$src" ] && [ -r "$src" ] || { err "Selected image is not readable: $src"; return 1; }
+  if command -v magick >/dev/null 2>&1; then image_cmd="magick"
+  elif command -v convert >/dev/null 2>&1; then image_cmd="convert"
+  else warn "Image conversion requires ImageMagick: pkg install imagemagick"; return 1
+  fi
+  printf '%s\n' "1) JPG" "2) PNG" "3) WebP" "4) BMP" "5) GIF" "6) TIFF" "0) Cancel"
+  ask_choice "Convert image $src to: " choice "1 2 3 4 5 6 0" || return 1
+  case "$choice" in 1) target="jpg" ;; 2) target="png" ;; 3) target="webp" ;; 4) target="bmp" ;; 5) target="gif" ;; 6) target="tiff" ;; *) return 0 ;; esac
+  ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
+  [[ "$ext" == "$target" || ( "$ext" == "jpeg" && "$target" == "jpg" ) || ( "$ext" == "tif" && "$target" == "tiff" ) ]] && { warn "Source and target image formats are the same."; return 1; }
+  output_dir="$(dirname "$src")"
+  probe="$(mktemp "$output_dir/.cyberforge-image.XXXXXX" 2>/dev/null)" || {
+    output_dir="$DOC_DIR"; mkdir -p "$output_dir" 2>/dev/null || { err "No writable output folder."; return 1; }
+    probe="$(mktemp "$output_dir/.cyberforge-image.XXXXXX" 2>/dev/null)" || { err "Cannot write to Documents."; return 1; }
+    info "Source folder is read-only. Output: $output_dir"
+  }
+  rm -f -- "$probe"
+  filename="$src"; filename="${filename##*/}"; filename="${filename%.*}"
+  stem="$output_dir/$filename"; output="${stem}_converted.$target"; suffix=1
+  while [[ -e "$output" ]]; do output="${stem}_converted_$suffix.$target"; ((suffix += 1)); done
+  "$image_cmd" "$src" -quality 90 "$output"
+  rc=$?
+  if (( rc == 0 )) && [ -s "$output" ]; then
+    ok "Converted image saved: $output"; info "Original image was not modified."; scan_media "$(dirname "$output")"; return 0
+  fi
+  rm -f -- "$output"
+  err "Image conversion failed. This ImageMagick build may not support the source or target format."
+  return 1
+}
+
+# Read text documents in the terminal and open binary/media files with Android.
+document_read_file() {
+  local src="$1" ext tmp rc
+  [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
+  ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
+  banner "READ FILE"
+  printf 'File: %s\n\n' "${src##*/}"
+  case "$ext" in
+    txt|md|csv|html|htm|xml|json|log|sh|py|js|ts|css|yaml|yml|ini|conf)
+      sed -n '1,200p' -- "$src"; printf '\n'; info "Showing the first 200 lines." ;;
+    pdf)
+      command -v pdftotext >/dev/null 2>&1 || { warn "Reading PDF text requires Poppler: pkg install poppler"; return 1; }
+      tmp="$(mktemp "${TMPDIR:-$PREFIX/tmp}/cyberforge-read.XXXXXX")" || return 1
+      if pdftotext -layout "$src" "$tmp"; then
+        sed -n '1,200p' "$tmp"; info "Showing the first 200 lines of selectable PDF text. Scanned pages need OCR, which is not included."; rc=0
+      else err "Could not extract text from this PDF."; rc=1
+      fi
+      rm -f "$tmp"; return "$rc" ;;
+    docx|odt|epub|rtf)
+      command -v pandoc >/dev/null 2>&1 || { warn "Reading this document requires Pandoc: pkg install pandoc"; return 1; }
+      pandoc -t plain "$src" 2>/dev/null | sed -n '1,200p'
+      info "Showing up to the first 200 lines." ;;
+    *)
+      if command -v termux-open >/dev/null 2>&1; then termux-open "$src"
+      else warn "No terminal reader is available for this file type. Install Termux:API to open it with Android."; return 1
+      fi ;;
+  esac
+}
+
 # Supported document conversions. OCR and scanned-PDF conversion are intentionally excluded.
 document_file_is_convertible() {
   local ext="$1"
   ext="${ext##*.}"
   ext="${ext,,}"
-  case "$ext" in docx|odt|epub|html|htm|md|txt|rtf|pdf) return 0 ;; *) return 1 ;; esac
+  case "$ext" in docx|odt|epub|html|htm|md|txt|rtf|pdf|jpg|jpeg|png|webp|bmp|gif|tif|tiff) return 0 ;; *) return 1 ;; esac
 }
 
 document_convert_file() {
   local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
   document_file_is_convertible "$src" || { warn "Conversion is not supported for: $src"; return 1; }
+  if document_file_is_image_convertible "$src"; then document_convert_image_file "$src"; return $?; fi
   ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
   if [[ "$ext" == "pdf" ]]; then
     command -v pdftotext >/dev/null 2>&1 || { warn "PDF extraction requires Poppler: pkg install poppler"; info "Scanned PDFs are not supported without OCR."; return 1; }
