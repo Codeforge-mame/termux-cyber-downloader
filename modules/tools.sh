@@ -57,6 +57,7 @@ tools_update_menu() {
     printf " 3) Update optional Python media tools (gallery-dl / Pillow)\n"
     printf " 4) Update all installed CyberForge tools\n"
     printf " 5) Show installed tool versions\n"
+    printf " 6) Check which tools need updates\n"
     printf " 0) Back\n"
     ask "Choose: " choice
     case "$choice" in
