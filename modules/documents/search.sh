@@ -929,9 +929,9 @@ try:
     with zipfile.ZipFile(source) as package:
         slides = [
             name for name in package.namelist()
-            if re.fullmatch(r"ppt/slides/slide\\d+\\.xml", name)
+            if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)
         ]
-        slides.sort(key=lambda name: int(re.search(r"slide(\\d+)\\.xml$", name).group(1)))
+        slides.sort(key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)))
         if not slides:
             raise ValueError("No slide XML files were found")
         with open(destination, "w", encoding="utf-8") as output_file:
@@ -942,10 +942,10 @@ try:
                     for node in root.iter()
                     if node.tag.endswith("}t") and node.text and node.text.strip()
                 ]
-                output_file.write(f"Slide {number}\\n")
+                output_file.write(f"Slide {number}\n")
                 if texts:
-                    output_file.write("\\n".join(texts) + "\\n")
-                output_file.write("\\n")
+                    output_file.write("\n".join(texts) + "\n")
+                output_file.write("\n")
 except Exception as exc:
     print(f"PPTX text extraction failed: {exc}", file=sys.stderr)
     sys.exit(1)
