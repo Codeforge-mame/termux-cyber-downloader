@@ -104,7 +104,7 @@ video_only_download() {
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   banner "VIDEO-ONLY RESOLUTION"
   printf " 1) Best available\n 2) Up to 2160p\n 3) Up to 1440p\n 4) Up to 1080p\n 5) Up to 720p\n 6) Up to 480p\n 7) Up to 360p\n 0) Cancel\n"
-  ask "Choose: " choice
+  ask_choice "Choose: " choice "1 2 3 4 5 6 7 0" || return 1
   case "$choice" in
     1) format='bestvideo/best'; archive_tag="best" ;;
     2) format='bestvideo[height<=2160]/bestvideo'; archive_tag="2160p" ;;
