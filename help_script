@@ -55,6 +55,7 @@ DOCUMENT MANAGER
   Storage locations are checked and labelled read/write or read only.
   Select multiple results with indexes (1 35 74), commas, or ranges (1-5).
   Choose Copy, Move, Delete, Read/Open, or Convert when supported files are selected. Delete requires typing DELETE to confirm.
+  Remove private metadata creates a separate sanitized copy in Documents/PrivacyCleaned; the original is never changed. Supported: common images, PDF, DOCX, XLSX, PPTX, ODT and EPUB. PDF needs ExifTool; images use ExifTool or ImageMagick. This removes embedded metadata, not personal details visible in the file content.
   Copy/move supports destination folders on storage locations Termux can access.
   Name collisions can be skipped, auto-renamed to keep both, or replaced after
   a separate confirmation. Move verifies the copied bytes before deleting source.
@@ -111,6 +112,7 @@ DEPENDENCIES
   Optional document conversion: pkg install pandoc poppler
   Spreadsheet CSV/XLSX: python -m pip install -U openpyxl
   Optional image conversion: pkg install imagemagick
+  PDF metadata removal: pkg install exiftool
   Install apkeep separately if you use APK source features.
 
 INPUT VALIDATION
