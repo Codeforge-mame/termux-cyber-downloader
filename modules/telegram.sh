@@ -11,7 +11,7 @@ telegram_download() {
 
   banner "TELEGRAM DOWNLOAD THREADS"
   printf " 1) 1 thread (most conservative)\n 2) 2 threads\n 3) 4 threads\n 4) 8 threads (fastest option)\n 0) Cancel\n"
-  ask "Choose thread count [default 8]: " threads_choice
+  ask_choice_default "Choose thread count [default 8]: " threads_choice "1 2 3 4" "4" || return 1
   case "$threads_choice" in
     0) info "Telegram download cancelled."; return 1 ;;
     1) threads=1 ;;
@@ -36,7 +36,7 @@ telegram_download() {
   scan_media "$telegram_dir"
   banner "OPTIONAL TELEGRAM VIDEO RESOLUTION"
   printf " 1) Keep original only\n 2) Create 1080p copy\n 3) Create 720p copy\n 4) Create 480p copy\n 5) Create 360p copy\n 0) Skip\n"
-  ask "Choose: " res
+  ask_choice "Choose: " res "1 2 3 4 5 0" || return 1
   case "$res" in
     2) convert_telegram 1080p ;;
     3) convert_telegram 720p ;;
