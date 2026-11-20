@@ -358,7 +358,7 @@ document_local_search() {
 }
 
 document_search_choose_roots() {
-  local choice index
+  local choice index allowed="0 a A"
   DOC_SELECTED_ROOTS=()
   document_search_discover_roots
   if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
@@ -369,24 +369,17 @@ document_search_choose_roots() {
   printf '\nSEARCH LOCATIONS\n'
   for index in "${!DOC_SEARCH_PATHS[@]}"; do
     printf ' %s) %s\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
+    allowed+=" $((index + 1))"
   done
   printf ' a) All detected accessible locations\n'
   printf ' 0) Cancel\n'
-  ask "Choose location: " choice
+  ask_choice "Choose location: " choice "$allowed" || return 1
   case "$choice" in
-    0|"") return 1 ;;
+    0) return 1 ;;
     a|A) DOC_SELECTED_ROOTS=("${DOC_SEARCH_PATHS[@]}") ;;
-    *)
-      if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#DOC_SEARCH_PATHS[@]} )); then
-        DOC_SELECTED_ROOTS=("${DOC_SEARCH_PATHS[$((choice - 1))]}")
-      else
-        warn "Invalid storage selection."
-        return 1
-      fi
-      ;;
+    *) DOC_SELECTED_ROOTS=("${DOC_SEARCH_PATHS[$((choice - 1))]}") ;;
   esac
 }
-
 document_search_show_matches() {
   local tmp="$1" title="$2" selected
   DOC_RESULT_FILES=()
@@ -423,30 +416,12 @@ document_local_type_search() {
     8) extensions=(mp4 mkv mov avi webm m4v 3gp) ;;
     9) extensions=(apk xapk apks) ;;
     10)
-      ask_pattern "File extension (without dot): " ext '^[A-Za-z0-9]+
-      extensions=("$ext")
-      ;;
-    0|"") return 0 ;;
-    *) warn "Invalid selection."; return 1 ;;
-  esac
-
-  document_search_choose_roots || return 0
-  tmp="$(mktemp 2>/dev/null)" || { err "Could not create a temporary search file."; return 1; }
-  info "Searching selected storage by extension..."
-  for index in "${!DOC_SELECTED_ROOTS[@]}"; do
-    for ext in "${extensions[@]}"; do
-      find "${DOC_SELECTED_ROOTS[$index]}" -type f -iname "*.$ext" -print0 2>/dev/null >> "$tmp"
-    done
-  done
-  document_search_show_matches "$tmp" "FILE TYPE RESULTS"
-}
- "Enter an extension using letters and numbers only." || return 1
+      ask_pattern "File extension (without dot): " ext '^[A-Za-z0-9]+$' "Enter an extension using letters and numbers only." || return 1
       ext="${ext#.}"
       ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
       extensions=("$ext")
       ;;
-    0|"") return 0 ;;
-    *) warn "Invalid selection."; return 1 ;;
+    0) return 0 ;;
   esac
 
   document_search_choose_roots || return 0
