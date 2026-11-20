@@ -51,13 +51,16 @@ DOCUMENT MANAGER
   Menu option 12 opens the Document Manager.
   Find local files by filename or search by type (PDF, Word/text, spreadsheets,
   presentations, images, archives, audio, video, APK, or a custom extension) in
-  internal shared storage, accessible SD cards, and detected USB/removable volumes.
-  Select a numbered match to validate it,
-  view its path, size, extension, and MIME type when the file command is installed.
-  Search is read-only: original files are never renamed, moved, or modified.
+  internal shared storage and detected accessible SD/USB/removable volumes.
+  Select multiple results with indexes (1 35 74), commas, or ranges (1-5).
+  Choose Copy, Move, or Delete. Delete requires typing DELETE to confirm.
+  Copy/move supports destination folders on storage locations Termux can access.
+  Name collisions can be skipped, auto-renamed to keep both, or replaced after
+  a separate confirmation. Move verifies the copied bytes before deleting source.
+  Search and inspection do not modify original files.
   Download a document or archive from a URL using the download option.
-  Android storage permissions limit which folders Termux can scan.
-  Searching inside document contents and file conversion are planned later.
+  File conversion remains a core planned feature; converted output will preserve
+  the original. OCR and document-content search are not in the current plan.
 
 APK DOWNLOAD
   Direct APK URLs, APKPure, and F-Droid options are available.
