@@ -145,8 +145,7 @@ document_local_search() {
 
   banner "FIND LOCAL FILES"
   ask "Filename or keyword: " keyword
-  keyword="${keyword#" "}"
-  keyword="${keyword%" "}"
+  keyword="$(printf '%s' "$keyword" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   [ -n "$keyword" ] || { warn "Enter a filename or keyword."; return 1; }
 
   printf '\nSEARCH LOCATIONS\n'
