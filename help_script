@@ -5,8 +5,13 @@ if [ ! -r "$ROOT/lib/colors.sh" ] && [ -r "$HOME/termux-cyber-downloader/lib/col
   ROOT="$HOME/termux-cyber-downloader"
 fi
 source "$ROOT/lib/colors.sh"
-banner "CYBERFORGE ANDROID TOOLKIT HELP"
-cat <<'HELP'
+
+HELP_WIDTH="$(term_width)"
+(( HELP_WIDTH > 4 )) && HELP_WIDTH=$((HELP_WIDTH - 4))
+(( HELP_WIDTH < 20 )) && HELP_WIDTH=20
+
+banner "CYBERFORGE HELP"
+cat <<'HELP' | fold -s -w "$HELP_WIDTH"
 START
   DL / cyberforge            Open the interactive main menu
   DL "https://..."           Open menu with a URL
@@ -34,8 +39,8 @@ TELEGRAM
   or 360p FFmpeg copy. The original file is never replaced.
 
 QUEUE
-  Queue items run sequentially. Failed or cancelled URLs remain in data/download_queue.txt.
-  Edit the queue from the menu or with nano.
+  Queue items run sequentially. Failed or cancelled URLs remain in
+  data/download_queue.txt. Edit the queue from the menu or with nano.
 
 PLAYLISTS
   Before each playlist download, enter a folder name. The playlist is saved
@@ -59,7 +64,8 @@ NETWORK SHORTCUT
 
 TOOL UPDATE CENTER
   Menu option 14 updates Termux packages, yt-dlp, optional Python media tools,
-  displays versions, and checks which packages have updates available. Use the update check to see pending updates.
+  displays versions, and checks which packages have updates available.
+  Use the update check to see pending updates.
 
 MOVIE / SERIES
   Search Google, JustWatch, or IMDb for legitimate sources.
@@ -77,4 +83,8 @@ DEPENDENCIES
   pip install -U yt-dlp
   Optional image tools: pip install -U gallery-dl pillow
   Install apkeep separately if you use APK source features.
+
+DISPLAY COMPATIBILITY
+  The interface detects terminal width and uses a safe fallback when terminal
+  size tools are unavailable. Narrow screens use compact, single-column menus.
 HELP
