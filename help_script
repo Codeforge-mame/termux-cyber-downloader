@@ -1,0 +1,72 @@
+#!/data/data/com.termux/files/usr/bin/bash
+ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
+source "$ROOT/lib/colors.sh"
+banner "TERMUX CYBER DOWNLOADER 2.0.1 HELP"
+cat <<'HELP'
+START
+  DL                         Open the interactive main menu
+  DL "https://..."           Open menu with a URL
+  help                       Show this help page (after installing alias)
+
+SHARE MENU
+  Share a supported link from another Android app to Termux.
+  Telegram t.me links are routed to the Telegram downloader.
+  Supported file links are automatically downloaded to Documents or APKs.
+
+VIDEO
+  Choose a resolution: Best, 2160p, 1440p, 1080p, 720p, 480p, 360p.
+  Turbo mode uses yt-dlp -N 8 where the source supports parallel fragments.
+  Trim asks for start/end timestamps and the selected resolution.
+
+VIDEO EXTRAS
+  Download a video with English manual/automatic subtitles, or choose
+  video-only mode with Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p.
+
+TELEGRAM
+  Telegram downloads are saved in Movies/Telegram.
+  Choose 1, 2, 4, or 8 transfer threads with the standard tdl package.
+  The normal --continue option is used, but an interrupted file may restart.
+  After a successful download, optionally create a 1080p, 720p, 480p,
+  or 360p FFmpeg copy. The original file is never replaced.
+
+QUEUE
+  Queue items run sequentially. Failed or cancelled URLs remain in data/download_queue.txt.
+  Edit the queue from the menu or with nano.
+
+PLAYLISTS
+  Before each playlist download, enter a folder name. The playlist is saved
+  in Movies/<folder name>/ with numbered filenames. Reuse the same folder
+  name when retrying an interrupted playlist download.
+
+DOCUMENTS & FILES
+  PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, ZIP/RAR/7z, EPUB, TXT, CSV, APK,
+  and XAPK links are automatically routed to Documents or Documents/APKs.
+  Downloads resume into the same URL-derived filename when the server
+  supports HTTP range requests. Use menu option 12 to enter a file URL manually.
+
+APK DOWNLOAD
+  Direct APK URLs, APKPure, and F-Droid options are available.
+  The old local APK scanner has been removed. Verify packages before installing.
+
+NETWORK SHORTCUT
+  Menu option 13 opens Android Radio Information.
+  Choose LTE only for a 4G lock; restore Auto or LTE/WCDMA if calls or
+  mobile service are affected. The general Android control panel is removed.
+
+MOVIE / SERIES
+  Search Google, JustWatch, or IMDb for legitimate sources.
+  Paste a source URL only when downloading is permitted by that source.
+  Choose a resolution and thread count before the yt-dlp download.
+
+IMAGE & MEDIA TOOLS
+  Download direct image URLs or social/gallery posts (gallery-dl required
+  for supported gallery sites), save video thumbnails, and process local
+  or downloaded images into crops, compressed formats, Expo assets, Web/PWA
+  assets, or a PDF.
+
+DEPENDENCIES
+  pkg install git python ffmpeg termux-api nano curl tdl
+  pip install -U yt-dlp
+  Optional image tools: pip install -U gallery-dl pillow
+  Install apkeep separately if you use APK source features.
+HELP

@@ -1,52 +1,137 @@
 # Termux Cyber Downloader & Android Toolkit
 
-An all-in-one Termux command-line media downloader and zero-app Android control toolkit triggered via the Android **Share Menu** or the **`dl`** clipboard alias.
+**Version:** 2.0.1 modular upgrade
+
+A modular Termux downloader with video, subtitles, video-only mode, playlists, documents, audio, Telegram, queue, APK downloads, movie search, image tools, and a 4G settings shortcut. Supports Android Share → Termux and the DL launcher command.
 
 ## Features
-- **Video & Playlist Matrix (`yt-dlp`):** Supports Best Quality, 720p, 480p, 360p, embedded English subtitles, silent video-only streams, timestamp clip trimming, and parallel fragment acceleration (`-N 2` to `-N 8`).
-- **429 Rate-Limit Auto-Recovery:** Automatically detects YouTube `HTTP Error 429` blocks, pauses with a push notification alert, and resumes seamlessly after toggling Airplane Mode.
-- **Smart Playlist & Separate Archives:** Automatically organizes playlists into dedicated subfolders inside `Movies/` and separates audio vs. video history archives so downloading an MP3 never blocks downloading the video later.
-- **Telegram CLI Integration (`tdl`):** Auto-detects `t.me/` links and downloads 1GB+ files with 8 parallel threads and resume support (`--continue`).
-- **Auto-Routing Document Downloader (`curl`):** Automatically routes `.pdf`, `.docx`, `.zip`, and `.apk`/`.xapk` links to `Documents/` with custom filename prompts and extension preservation.
-- **Batch Queue (`~/links.txt`):** Edit links in `nano` and choose batch resolution (`-N 8` Turbo).
-- **Zero-App Android & Network Panel:** Quick launcher for `4G Only / Auto` (`RadioInfo`), smart App Info & Cache Manager, Battery Optimization, Data Saver, Storage Manager, Name-Filtered Local `.apk`/`.xapk` Scanner, and Online App Installer (`apkeep`).
 
-## Requirements
-- **Android Device** with **Termux** (official [GitHub](https://github.com) or F-Droid release recommended) and **Termux:API** companion app.
-- **Required Termux Packages:** `git`, `python`, `ffmpeg`, `termux-api`, `nano`, `tdl`, `apkeep`, `unzip`, `curl`, and `yt-dlp`.
+- Modular Bash layout with shared configuration, colors, and helper functions.
+- Video resolution selection, turbo downloads, timestamp trimming, English subtitles, and video-only downloads with selectable resolution.
+- Playlist mode asks for a folder name and saves each playlist under its own folder in Movies.
+- Playlist-aware filenames with playlist index numbers.
+- Telegram downloads are saved in Movies/Telegram, with selectable 1, 2, 4, or 8 transfer threads using the standard tdl release.
+- Telegram's normal `--continue` option is passed to tdl; byte-level resume for interrupted Telegram files is not included.
+- Direct document and archive downloads resume into a stable URL-derived filename when the server supports HTTP Range requests.
+- Optional FFmpeg conversion after Telegram download creates a separate copy and retains the original.
+- Sequential queue with failed or cancelled URLs retained for retry.
+- Direct APK URL downloads plus APKPure/F-Droid options through apkeep. The local APK scanner and general Android control panel are not included.
+- Direct document and archive downloads, automatically routed from Android Share or clipboard to Documents or Documents/APKs.
+- One-tap shortcut to Android Radio Information for manual LTE-only / 4G selection.
+- Image downloads from direct URLs and supported social/gallery pages through gallery-dl.
+- Video thumbnail downloads.
+- Image processing: square, widescreen, vertical and portrait crops; blurred fit; conversion/compression; metadata stripping; custom dimensions; Expo assets; Web/PWA assets; image-to-PDF.
 
-## Quick Installation
+## Install / update in Termux
 
-1. **Update Termux & Install Required Packages:**
-   ```bash
-   pkg update && pkg upgrade -y
-   pkg install git python ffmpeg termux-api nano tdl apkeep unzip curl -y
-   pip install -U yt-dlp
-   termux-setup-storage
-   ```
+```bash
+pkg update && pkg upgrade -y
+pkg install git python ffmpeg termux-api nano curl tdl -y
+pip install -U yt-dlp gallery-dl pillow
+termux-setup-storage
 
-2. **Clone This Repository & Install the Script:**
-   ```bash
-   git clone https://github.com\$(gh api user -q .login 2>/dev/null || echo "YOUR_USERNAME")/termux-cyber-downloader.git ~/termux-cyber-downloader
-   mkdir -p ~/bin
-   cp ~/termux-cyber-downloader/termux-url-opener ~/bin/termux-url-opener
-   chmod +x ~/bin/termux-url-opener
-   ```
+git clone -b v2.0.1-modular-upgrade https://github.com/Codeforge-mame/termux-cyber-downloader.git ~/termux-cyber-downloader
+# If already cloned:
+cd ~/termux-cyber-downloader
+git fetch origin
+git checkout v2.0.1-modular-upgrade
+git pull --ff-only origin v2.0.1-modular-upgrade
 
-3. **Set Up Terminal Shortcuts (`dl`, `dlbatch`, `4g`):**
-   ```bash
-   echo 'alias dl="~/bin/termux-url-opener \"\$(termux-clipboard-get)\""' >> ~/.bashrc
-   echo 'alias dlbatch="yt-dlp -4 -N 3 --sleep-interval 5 --max-sleep-interval 12 --download-archive ~/.yt-dlp-archive.txt -P ~/storage/movies -o \"%(playlist_title&{}/|)s%(title)s.%(ext)s\" -a ~/links.txt && > ~/links.txt"' >> ~/.bashrc
-   echo 'alias 4g="am start -n com.android.phone/.settings.RadioInfo"' >> ~/.bashrc
-   source ~/.bashrc
-   ```
+mkdir -p ~/bin
+cp ~/termux-cyber-downloader/termux-url-opener ~/bin/termux-url-opener
+cp ~/termux-cyber-downloader/help_script ~/bin/cyber-help
+chmod +x ~/bin/termux-url-opener ~/bin/cyber-help
+```
 
-4. **Log Into Telegram CLI (`tdl`) for 1GB+ Telegram Links:**
-   ```bash
-   tdl login --code
-   ```
+Add shortcuts to ~/.bashrc:
+
+```bash
+echo 'alias DL="$HOME/bin/termux-url-opener"' >> ~/.bashrc
+echo 'alias dl="$HOME/bin/termux-url-opener"' >> ~/.bashrc
+echo 'alias help="bash $HOME/termux-cyber-downloader/help_script"' >> ~/.bashrc
+source ~/.bashrc
+```
 
 ## Usage
-- **From Any App:** Tap **Share -> Termux**.
-- **From Clipboard:** Copy any link and type `dl` in Termux.
-- **Quick 4G Lock:** Type `4g` in Termux to open `RadioInfo`.
+
+- Type `DL` or `dl` to open the interactive main menu.
+- Type `help` to open the help page.
+- Share a supported URL from another app to Termux.
+- Telegram `t.me` links auto-start the Telegram flow and save under `Movies/Telegram`.
+- Supported document/file links auto-download to Documents or Documents/APKs.
+
+### Video, subtitles, and playlists
+
+Choose Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p. Turbo mode uses eight parallel fragments when supported. Trim mode asks for start and end timestamps.
+
+The Video Extras menu offers English manual/automatic subtitle downloads with embedding where supported, plus video-only downloads without an audio stream. Video-only mode now has its own Best/2160p/1440p/1080p/720p/480p/360p selector.
+
+For playlists, enter a folder name before choosing the resolution. The playlist is saved in `~/storage/movies/<folder name>` with numbered filenames. Reuse the same folder name when retrying an interrupted playlist; yt-dlp's continue option and download archive help avoid restarting completed items.
+
+### Documents and Android network settings
+
+PDF, Office, ZIP/RAR/7z, EPUB, TXT, CSV, APK, and XAPK links shared to the launcher are routed to Documents or Documents/APKs. Downloads use a stable filename derived from the URL, allowing curl to continue a partial file when the server supports HTTP Range requests. Menu option 12 accepts a file URL manually.
+
+Menu option 13 opens Android Radio Information. Selecting LTE only can lock a compatible device to 4G, but may affect voice calls; restore Auto or LTE/WCDMA when needed. The broader Android control panel and local APK scanner have been removed.
+
+### Queue
+
+Add links from the menu, edit the queue in nano, and run it sequentially. Failed or cancelled URLs remain in `data/download_queue.txt`.
+
+### Telegram
+
+Telegram downloads use the standard Termux `tdl` package and are saved under `Movies/Telegram`. Choose 1, 2, 4, or 8 transfer threads. The downloader passes `--continue --skip-same`; however, the standard tdl release may remove an unfinished temporary file after Ctrl+C, so a retry may start that file again.
+
+After a successful download, choose whether to keep the original or create a 1080p, 720p, 480p, or 360p FFmpeg copy. The original is retained.
+
+### Images and media
+
+The Image & Media Tools menu supports direct image URLs and gallery/social URLs through `gallery-dl`, video thumbnails through yt-dlp, and image processing through FFmpeg. Pillow is used for combining images into a PDF.
+
+### APK downloads
+
+Direct URLs are saved under Documents/APKs. The apkeep sources require apkeep to be installed. Verify APK provenance before installing. The old local APK scanner is removed.
+
+### Movie / series search
+
+Enter a title and choose Google, JustWatch, or IMDb to find legitimate availability. Streaming services may use DRM or other protections and may not provide downloadable media.
+
+## Project layout
+
+```text
+termux-url-opener
+help_script
+lib/
+  colors.sh
+  config.sh
+  common.sh
+modules/
+  main_menu.sh
+  video.sh
+  documents.sh
+  image.sh
+  telegram.sh
+  queue.sh
+  apk.sh
+  movie.sh
+legacy/
+  termux-url-opener  # retained as an inactive backup, not linked from the main menu
+data/
+  download_queue.txt
+  download_history.txt
+```
+
+## Notes and limitations
+
+- yt-dlp `-N 8` controls concurrent fragment downloads, not a guaranteed eightfold speedup. Some sites do not support fragment concurrency.
+- Telegram's selected `tdl -t` value controls Telegram transfer workers. More threads do not guarantee higher speed; connection quality and Telegram/API behavior also matter.
+- Telegram byte-level resume for interrupted files is not included. The standard tdl release may restart an unfinished file after interruption.
+- HTTP file resume requires the server to support byte ranges and to return a compatible response.
+- Social/gallery image downloads depend on the site's support in the installed gallery-dl version.
+- The Android Radio Information activity may differ across device manufacturers and Android versions. LTE-only mode may disable voice calls.
+- Movie search only helps locate legitimate availability; it does not download copyrighted movies from unauthorized sources.
+- This is a Termux Bash toolkit. Only use network or device functions on systems you own or are authorized to manage.
+
+## Dependencies
+
+Core: Bash, yt-dlp, Python, curl, and tdl. FFmpeg is required for video/image processing. Termux:API is optional for notifications and media scanning. Optional: gallery-dl (social/gallery image downloads), Pillow (image-to-PDF), apkeep (APK sources), nano (queue editing).
