@@ -224,12 +224,12 @@ document_search_choose_roots() {
     info "Run termux-setup-storage and grant Android storage permission, then try again."
     return 1
   fi
-  printf '\\nSEARCH LOCATIONS\\n'
+  printf '\nSEARCH LOCATIONS\n'
   for index in "${!DOC_SEARCH_PATHS[@]}"; do
-    printf ' %s) %s\\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
+    printf ' %s) %s\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
   done
-  printf ' a) All detected accessible locations\\n'
-  printf ' 0) Cancel\\n'
+  printf ' a) All detected accessible locations\n'
+  printf ' 0) Cancel\n'
   ask "Choose location: " choice
   case "$choice" in
     0|"") return 1 ;;
@@ -256,17 +256,17 @@ document_search_show_matches() {
     return 0
   fi
   banner "$title"
-  printf 'Found %s matching file(s).\\n' "$count"
+  printf 'Found %s matching file(s).\n' "$count"
   for index in "${!matches[@]}"; do
     (( shown >= 100 )) && break
-    printf '\\n%s) %s\\n' "$((index + 1))" "${matches[$index]##*/}"
-    printf '   %s\\n' "${matches[$index]}"
+    printf '\n%s) %s\n' "$((index + 1))" "${matches[$index]##*/}"
+    printf '   %s\n' "${matches[$index]}"
     ((shown += 1))
   done
   if (( count > shown )); then
     warn "Showing the first $shown results. Refine the search to narrow the list."
   fi
-  printf '\\n'
+  printf '\n'
   ask "Select a result number (0 to return): " choice
   [[ "$choice" == "0" || -z "$choice" ]] && return 0
   if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= shown )); then
@@ -281,7 +281,7 @@ document_local_type_search() {
   local choice index ext tmp
   local -a extensions=()
   banner "SEARCH BY FILE TYPE"
-  printf '%s\\n' \
+  printf '%s\n' \
     " 1) PDF documents" \
     " 2) Word / text documents" \
     " 3) Spreadsheets" \
