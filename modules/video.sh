@@ -57,3 +57,57 @@ audio_download() {
   run_ytdlp -4 -N 2 --download-archive "$AUDIO_ARCHIVE" -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$url"
   local rc=$?; [ "$rc" -eq 0 ] && record_history audio "$url" && scan_media "$MUSIC_DIR"; return "$rc"
 }
+
+
+video_subtitle_download() {
+  local url="${1:-}" choice format rc
+  [ -n "$url" ] || ask "Video URL: " url
+  valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
+  banner "VIDEO WITH SUBTITLES"
+  printf " 1) Best available + English subtitles\n 2) 720p + English subtitles\n 3) 480p + English subtitles\n 4) 360p + English subtitles\n 0) Cancel\n"
+  ask "Choose: " choice
+  case "$choice" in
+    1) format='bestvideo+bestaudio/best' ;;
+    2) format='bestvideo[height<=720]+bestaudio/best[height<=720]/best' ;;
+    3) format='bestvideo[height<=480]+bestaudio/best[height<=480]/best' ;;
+    4) format='bestvideo[height<=360]+bestaudio/best[height<=360]/best' ;;
+    *) return 1 ;;
+  esac
+  run_ytdlp -4 -N 2 --sleep-interval 2 --max-sleep-interval 5 --download-archive "$ARCHIVE_FILE" --write-subs --write-auto-subs --sub-langs "en.*,en" --embed-subs -f "$format" --merge-output-format mp4 -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    record_history video_subtitles "$url"
+    scan_media "$VIDEO_DIR"
+  fi
+  return "$rc"
+}
+
+video_only_download() {
+  local url="${1:-}" rc
+  [ -n "$url" ] || ask "Video URL (video stream without audio): " url
+  valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
+  info "Downloading video-only stream (no audio track)."
+  run_ytdlp -4 -N 2 --download-archive "$ARCHIVE_FILE" -f 'bestvideo[ext=mp4]/bestvideo' -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    record_history video_only "$url"
+    scan_media "$VIDEO_DIR"
+  fi
+  return "$rc"
+}
+
+video_extras_menu() {
+  local url="${1:-}" choice
+  while true; do
+    banner "VIDEO EXTRAS"
+    printf " 1) Download video with English subtitles\n 2) Download video only (no audio)\n 0) Back\n"
+    ask "Choose: " choice
+    case "$choice" in
+      1) video_subtitle_download "$url"; url="" ;;
+      2) video_only_download "$url"; url="" ;;
+      0|"") return 0 ;;
+      *) warn "Unknown video option." ;;
+    esac
+    printf "\\n"
+  done
+}
