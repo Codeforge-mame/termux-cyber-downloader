@@ -47,11 +47,15 @@ PLAYLISTS
   in Movies/<folder name>/ with numbered filenames. Reuse the same folder
   name when retrying an interrupted playlist download.
 
-DOCUMENTS & FILES
-  PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, ZIP/RAR/7z, EPUB, TXT, CSV, APK,
-  and XAPK links are automatically routed to Documents or Documents/APKs.
-  Downloads resume into the same URL-derived filename when the server
-  supports HTTP range requests. Use menu option 12 to enter a file URL manually.
+DOCUMENT MANAGER
+  Menu option 12 opens the Document Manager.
+  Find local files by filename in internal shared storage, accessible SD cards,
+  and detected USB/removable volumes. Select a numbered match to validate it,
+  view its path, size, extension, and MIME type when the file command is installed.
+  Search is read-only: original files are never renamed, moved, or modified.
+  Download a document or archive from a URL using the download option.
+  Android storage permissions limit which folders Termux can scan.
+  File-type and document-content searches, plus conversion, are planned later.
 
 APK DOWNLOAD
   Direct APK URLs, APKPure, and F-Droid options are available.
