@@ -60,7 +60,7 @@ audio_download() {
 
 
 video_subtitle_download() {
-  local url="${1:-}" choice format rc
+  local url="${1:-}" choice format rc subtitle_dir="$VIDEO_DIR/Subtitles"
   [ -n "$url" ] || ask "Video URL: " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   banner "VIDEO WITH SUBTITLES"
@@ -73,7 +73,8 @@ video_subtitle_download() {
     4) format='bestvideo[height<=360]+bestaudio/best[height<=360]/best' ;;
     *) return 1 ;;
   esac
-  run_ytdlp -4 -N 2 --sleep-interval 2 --max-sleep-interval 5 --download-archive "$ARCHIVE_FILE" --write-subs --write-auto-subs --sub-langs "en.*,en" --embed-subs -f "$format" --merge-output-format mp4 -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
+  mkdir -p "$subtitle_dir"
+  run_ytdlp -4 -N 2 --sleep-interval 2 --max-sleep-interval 5 --download-archive "$HOME/.yt-dlp-subtitles-archive.txt" --write-subs --write-auto-subs --sub-langs "en.*,en" --embed-subs -f "$format" --merge-output-format mp4 -P "$subtitle_dir" -o "$OUT_TMPL" "$url"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     record_history video_subtitles "$url"
@@ -83,15 +84,16 @@ video_subtitle_download() {
 }
 
 video_only_download() {
-  local url="${1:-}" rc
+  local url="${1:-}" rc video_only_dir="$VIDEO_DIR/VideoOnly"
   [ -n "$url" ] || ask "Video URL (video stream without audio): " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   info "Downloading video-only stream (no audio track)."
-  run_ytdlp -4 -N 2 --download-archive "$ARCHIVE_FILE" -f 'bestvideo[ext=mp4]/bestvideo' -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
+  mkdir -p "$video_only_dir"
+  run_ytdlp -4 -N 2 --download-archive "$HOME/.yt-dlp-video-only-archive.txt" -f 'bestvideo[ext=mp4]/bestvideo' -P "$video_only_dir" -o "$OUT_TMPL" "$url"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     record_history video_only "$url"
-    scan_media "$VIDEO_DIR"
+    scan_media "$video_only_dir"
   fi
   return "$rc"
 }
