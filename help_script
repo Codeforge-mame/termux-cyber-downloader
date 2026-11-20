@@ -35,9 +35,15 @@ MOVIE / SERIES
   Paste a source URL only when downloading is permitted by that source.
   Choose a resolution and thread count before the yt-dlp download.
 
-LEGACY FEATURES
-  The original launcher is retained in legacy/termux-url-opener for image,
-  Expo assets, document, and Android utilities while these modules are migrated.
+PLAYLISTS
+  Use the dedicated playlist option. Each playlist is stored in its own
+  subfolder under the Movies directory, with numbered filenames.
+
+IMAGE & MEDIA TOOLS
+  Download direct image URLs or social/gallery posts (gallery-dl required
+  for supported gallery sites), save video thumbnails, and process local
+  or downloaded images into crops, compressed formats, Expo assets, Web/PWA
+  assets, or a PDF.
 
 DEPENDENCIES
   pkg install git python ffmpeg termux-api nano curl
