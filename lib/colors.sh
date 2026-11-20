@@ -64,6 +64,35 @@ ask_choice() {
 }
 
 
+
+ask_url() {
+  local prompt="$1" __var="$2" answer attempt
+  for ((attempt=1; attempt<=3; attempt++)); do
+    ask "$prompt" answer
+    if [[ "$answer" =~ ^https?://[^[:space:]]+$ ]]; then
+      printf -v "$__var" '%s' "$answer"
+      return 0
+    fi
+    err "Enter a valid URL beginning with http:// or https:// (attempt $attempt/3)."
+  done
+  warn "Maximum attempts reached. Returning to the previous menu."
+  return 1
+}
+
+ask_nonempty() {
+  local prompt="$1" __var="$2" answer attempt
+  for ((attempt=1; attempt<=3; attempt++)); do
+    ask "$prompt" answer
+    if [[ -n "${answer//[[:space:]]/}" ]]; then
+      printf -v "$__var" '%s' "$answer"
+      return 0
+    fi
+    err "This field cannot be empty (attempt $attempt/3)."
+  done
+  warn "Maximum attempts reached. Returning to the previous menu."
+  return 1
+}
+
 ask_choice_default() {
   local prompt="$1" __var="$2" allowed="$3" default="$4" answer attempt
   for ((attempt=1; attempt<=3; attempt++)); do
