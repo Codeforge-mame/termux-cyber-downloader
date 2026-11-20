@@ -51,16 +51,20 @@ DOCUMENT MANAGER
   Menu option 12 opens the Document Manager.
   Find local files by filename or search by type (PDF, Word/text, spreadsheets,
   presentations, images, archives, audio, video, APK, or a custom extension) in
-  internal shared storage and detected accessible SD/USB/removable volumes.
+  accessible internal shared storage and detected SD/USB/removable volumes.
+  Storage locations are checked and labelled read/write or read only.
   Select multiple results with indexes (1 35 74), commas, or ranges (1-5).
   Choose Copy, Move, or Delete. Delete requires typing DELETE to confirm.
   Copy/move supports destination folders on storage locations Termux can access.
   Name collisions can be skipped, auto-renamed to keep both, or replaced after
   a separate confirmation. Move verifies the copied bytes before deleting source.
   Search and inspection do not modify original files.
+  Convert DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF with optional Pandoc.
+  Selectable-text PDF conversion needs Poppler; scanned PDFs are not OCR'd.
+  Converted files are saved separately; originals are never overwritten.
+  Copy/move destinations are limited to locations that pass a write-access test.
   Download a document or archive from a URL using the download option.
-  File conversion remains a core planned feature; converted output will preserve
-  the original. OCR and document-content search are not in the current plan.
+  OCR and document-content search are not included.
 
 APK DOWNLOAD
   Direct APK URLs, APKPure, and F-Droid options are available.
@@ -91,6 +95,7 @@ DEPENDENCIES
   pkg install git python ffmpeg termux-api nano curl tdl
   pip install -U yt-dlp
   Optional image tools: pip install -U gallery-dl pillow
+  Optional document conversion: pkg install pandoc poppler
   Install apkeep separately if you use APK source features.
 
 INPUT VALIDATION
