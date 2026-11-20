@@ -25,7 +25,7 @@ movie_search() {
   info "After choosing a source, paste its video/page URL only if that source permits downloading."
   ask "Authorized video/page URL (or Enter to stop): " video_url
   [ -n "$video_url" ] || { info "Search finished. No download started."; return 0; }
-  valid_url "$video_url" || { err "Please enter a valid http(s) URL."; return 1; }
+  ask_url "Authorized video/page URL: " video_url || return 1
 
   resolution_menu || return 0
 
