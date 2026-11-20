@@ -138,7 +138,7 @@ cyber-help
 
 ## Document Manager
 
-Choose **12) Documents / files** from the main menu.
+Choose **12) Document Manager** from the main menu.
 
 - **Find local files:** search by filename or keyword, then choose internal shared storage, a detected removable volume, or all detected accessible locations.
 - **Numbered results:** select a result to inspect its full path, file size, extension, readability, and MIME type when the optional `file` command is available.
