@@ -214,3 +214,114 @@ document_local_search() {
     return 1
   fi
 }
+
+document_search_choose_roots() {
+  local choice index
+  DOC_SELECTED_ROOTS=()
+  document_search_discover_roots
+  if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
+    err "No accessible shared or removable storage was detected."
+    info "Run termux-setup-storage and grant Android storage permission, then try again."
+    return 1
+  fi
+  printf '\\nSEARCH LOCATIONS\\n'
+  for index in "${!DOC_SEARCH_PATHS[@]}"; do
+    printf ' %s) %s\\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
+  done
+  printf ' a) All detected accessible locations\\n'
+  printf ' 0) Cancel\\n'
+  ask "Choose location: " choice
+  case "$choice" in
+    0|"") return 1 ;;
+    a|A) DOC_SELECTED_ROOTS=("${DOC_SEARCH_PATHS[@]}") ;;
+    *)
+      if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#DOC_SEARCH_PATHS[@]} )); then
+        DOC_SELECTED_ROOTS=("${DOC_SEARCH_PATHS[$((choice - 1))]}")
+      else
+        warn "Invalid storage selection."
+        return 1
+      fi
+      ;;
+  esac
+}
+
+document_search_show_matches() {
+  local tmp="$1" title="$2" selected choice index count shown=0
+  local -a matches=()
+  while IFS= read -r -d '' selected; do matches+=("$selected"); done < "$tmp"
+  rm -f "$tmp"
+  count="${#matches[@]}"
+  if (( count == 0 )); then
+    warn "No matching files were found in the selected accessible locations."
+    return 0
+  fi
+  banner "$title"
+  printf 'Found %s matching file(s).\\n' "$count"
+  for index in "${!matches[@]}"; do
+    (( shown >= 100 )) && break
+    printf '\\n%s) %s\\n' "$((index + 1))" "${matches[$index]##*/}"
+    printf '   %s\\n' "${matches[$index]}"
+    ((shown += 1))
+  done
+  if (( count > shown )); then
+    warn "Showing the first $shown results. Refine the search to narrow the list."
+  fi
+  printf '\\n'
+  ask "Select a result number (0 to return): " choice
+  [[ "$choice" == "0" || -z "$choice" ]] && return 0
+  if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= shown )); then
+    document_selected_file_info "${matches[$((choice - 1))]}"
+  else
+    warn "Invalid result number."
+    return 1
+  fi
+}
+
+document_local_type_search() {
+  local choice index ext tmp
+  local -a extensions=()
+  banner "SEARCH BY FILE TYPE"
+  printf '%s\\n' \
+    " 1) PDF documents" \
+    " 2) Word / text documents" \
+    " 3) Spreadsheets" \
+    " 4) Presentations" \
+    " 5) Images" \
+    " 6) Archives" \
+    " 7) Audio files" \
+    " 8) Video files" \
+    " 9) APK / Android packages" \
+    "10) Enter extension manually" \
+    " 0) Back"
+  ask "Choose file type: " choice
+  case "$choice" in
+    1) extensions=(pdf) ;;
+    2) extensions=(doc docx odt rtf txt md) ;;
+    3) extensions=(csv xls xlsx ods) ;;
+    4) extensions=(ppt pptx odp) ;;
+    5) extensions=(jpg jpeg png webp bmp gif tif tiff heic heif) ;;
+    6) extensions=(zip rar 7z tar gz bz2 xz) ;;
+    7) extensions=(mp3 m4a aac wav ogg flac opus) ;;
+    8) extensions=(mp4 mkv mov avi webm m4v 3gp) ;;
+    9) extensions=(apk xapk apks) ;;
+    10)
+      ask "File extension (without dot): " ext
+      ext="${ext#.}"
+      ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
+      [ -n "$ext" ] || { warn "Invalid extension."; return 1; }
+      extensions=("$ext")
+      ;;
+    0|"") return 0 ;;
+    *) warn "Invalid selection."; return 1 ;;
+  esac
+
+  document_search_choose_roots || return 0
+  tmp="$(mktemp 2>/dev/null)" || { err "Could not create a temporary search file."; return 1; }
+  info "Searching selected storage by extension..."
+  for index in "${!DOC_SELECTED_ROOTS[@]}"; do
+    for ext in "${extensions[@]}"; do
+      find "${DOC_SELECTED_ROOTS[$index]}" -type f -iname "*.$ext" -print0 2>/dev/null >> "$tmp"
+    done
+  done
+  document_search_show_matches "$tmp" "FILE TYPE RESULTS"
+}
