@@ -8,13 +8,13 @@ document_manager_menu() {
       " 2) Search by file type" \
       " 3) Download a document / file" \
       " 0) Back to main menu"
-    ask "documents> " choice
+    ask_choice "documents> " choice "1 2 3 0 q Q" || { break; }
     case "$choice" in
       1) document_local_search ;;
       2) document_local_type_search ;;
       3) document_download "" ;;
       0|q|Q) break ;;
-      *) warn "Unknown selection." ;;
+      *) warn "Invalid selection."; continue ;;
     esac
     printf '\n'
     local again
