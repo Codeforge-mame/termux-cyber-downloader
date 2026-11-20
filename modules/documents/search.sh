@@ -310,9 +310,10 @@ document_manage_matches() {
   printf 'Selected %s file(s):\n' "${#selected[@]}"
   for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
   printf '\n'
-  local can_convert=0
+  local can_convert=0 can_clean=0
   for src in "${selected[@]}"; do
-    if document_file_is_convertible "$src"; then can_convert=1; break; fi
+    if document_file_is_convertible "$src"; then can_convert=1; fi
+    if document_file_metadata_supported "$src"; then can_clean=1; fi
   done
   local operation_choices="1 2 3 0"
   printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete"
@@ -323,6 +324,10 @@ document_manage_matches() {
   if (( ${#selected[@]} == 1 )); then
     printf '%s\n' " 5) Read / open selected file"
     operation_choices="$operation_choices 5"
+  fi
+  if (( can_clean )); then
+    printf '%s\n' " 6) Remove private metadata (create clean copies)"
+    operation_choices="$operation_choices 6"
   fi
   printf '%s\n' " 0) Cancel"
   ask_choice "Choose operation: " action "$operation_choices" || return 1
@@ -343,6 +348,19 @@ document_manage_matches() {
       ;;
     5)
       for src in "${selected[@]}"; do document_read_file "$src" || warn "Could not read/open: ${src##*/}"; printf '\n'; done
+      ;;
+    6)
+      printf '\nMetadata cleaning creates new copies in Documents/PrivacyCleaned. Originals are never changed.\n'
+      local clean_count=0 clean_failed=0
+      for src in "${selected[@]}"; do
+        if document_file_metadata_supported "$src"; then
+          if document_remove_private_metadata "$src"; then ((clean_count += 1)); else ((clean_failed += 1)); fi
+        else
+          warn "Skipped unsupported metadata format: ${src##*/}"
+          ((clean_failed += 1))
+        fi
+      done
+      printf '\nMetadata cleaning summary: %s created, %s skipped/failed.\n' "$clean_count" "$clean_failed"
       ;;
     3)
       printf '\n'
@@ -730,6 +748,118 @@ document_read_file() {
   esac
 }
 
+# Validate conversion outputs before reporting success.
+document_validate_converted_output() {
+  local output="$1" format="${2,,}"
+  [[ -s "$output" ]] || { err "Conversion produced an empty output file."; return 1; }
+  case "$format" in
+    docx|xlsx|pptx|odt|epub)
+      python - "$output" "$format" <<'PY'
+import sys, zipfile
+path, fmt = sys.argv[1:3]
+required = {
+    "docx": {"[Content_Types].xml", "word/document.xml"},
+    "xlsx": {"[Content_Types].xml", "xl/workbook.xml"},
+    "pptx": {"[Content_Types].xml", "ppt/presentation.xml"},
+    "odt": {"mimetype", "content.xml"},
+    "epub": {"mimetype", "META-INF/container.xml"},
+}[fmt]
+try:
+    with zipfile.ZipFile(path) as archive:
+        bad = archive.testzip()
+        if bad or not required.issubset(set(archive.namelist())):
+            raise ValueError(f"Invalid {fmt.upper()} package")
+except Exception as exc:
+    print(f"Output validation failed: {exc}", file=sys.stderr)
+    sys.exit(1)
+PY
+      return $? ;;
+    pdf)
+      head -c 5 "$output" 2>/dev/null | grep -q '^%PDF-' || { err "Output does not have a valid PDF signature."; return 1; } ;;
+    jpg|jpeg|png|webp|bmp|gif|tif|tiff)
+      if command -v magick >/dev/null 2>&1; then magick identify "$output" >/dev/null 2>&1 || return 1
+      elif command -v identify >/dev/null 2>&1; then identify "$output" >/dev/null 2>&1 || return 1
+      fi ;;
+  esac
+  return 0
+}
+
+# Metadata cleaning writes a separate sanitized copy; the source is untouched.
+document_file_metadata_supported() {
+  local ext="${1##*.}"; ext="${ext,,}"
+  case "$ext" in jpg|jpeg|png|webp|bmp|gif|tif|tiff|pdf|docx|xlsx|pptx|odt|epub) return 0 ;; *) return 1 ;; esac
+}
+
+document_remove_private_metadata() {
+  local src="$1" ext output_dir filename output suffix rc=1 probe
+  [[ -f "$src" && -r "$src" ]] || { err "Selected file is not readable: $src"; return 1; }
+  document_file_metadata_supported "$src" || { warn "Unsupported metadata format: ${src##*/}"; return 1; }
+  ext="${src##*.}"; ext="${ext,,}"
+  output_dir="$DOC_DIR/PrivacyCleaned"
+  mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create PrivacyCleaned folder."; return 1; }
+  probe="$(mktemp "$output_dir/.cyberforge-private.XXXXXX" 2>/dev/null)" || { err "PrivacyCleaned folder is not writable."; return 1; }
+  rm -f -- "$probe"
+  filename="${src##*/}"; filename="${filename%.*}"
+  output="$output_dir/${filename}_metadata_removed.$ext"
+  suffix=1
+  while [[ -e "$output" ]]; do output="$output_dir/${filename}_metadata_removed_$suffix.$ext"; ((suffix += 1)); done
+
+  case "$ext" in
+    docx|xlsx|pptx|odt|epub)
+      python - "$src" "$output" "$ext" <<'PY'
+import sys, zipfile
+import xml.etree.ElementTree as ET
+source, destination, fmt = sys.argv[1:4]
+def local(tag):
+    return tag.rsplit("}", 1)[-1].lower()
+try:
+    with zipfile.ZipFile(source, "r") as src, zipfile.ZipFile(destination, "w") as dst:
+        for info in src.infolist():
+            name = info.filename
+            data = src.read(name)
+            lower = name.lower()
+            if lower in ("docprops/core.xml", "docprops/app.xml", "docprops/custom.xml", "meta.xml"):
+                root = ET.fromstring(data)
+                root.clear()
+                data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            elif fmt == "epub" and lower.endswith(".opf"):
+                root = ET.fromstring(data)
+                for parent in root.iter():
+                    for child in list(parent):
+                        tag = local(child.tag)
+                        prop = child.attrib.get("property", "").lower()
+                        if tag in {"creator", "contributor", "publisher", "rights", "date"}:
+                            parent.remove(child)
+                        elif tag == "meta" and prop in {"dcterms:modified", "calibre:timestamp"}:
+                            parent.remove(child)
+                data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            dst.writestr(info, data)
+except Exception as exc:
+    print(f"Metadata cleaning failed: {exc}", file=sys.stderr)
+    sys.exit(1)
+PY
+      rc=$? ;;
+    pdf)
+      if command -v exiftool >/dev/null 2>&1; then exiftool -all= -o "$output" "$src" >/dev/null 2>&1 && rc=0
+      else warn "PDF metadata cleaning requires ExifTool: pkg install exiftool"; fi ;;
+    *)
+      if command -v exiftool >/dev/null 2>&1; then exiftool -all= -o "$output" "$src" >/dev/null 2>&1 && rc=0
+      elif command -v magick >/dev/null 2>&1; then magick "$src" -strip "$output" >/dev/null 2>&1 && rc=0
+      elif command -v convert >/dev/null 2>&1; then convert "$src" -strip "$output" >/dev/null 2>&1 && rc=0
+      else warn "Image metadata cleaning needs ExifTool or ImageMagick."; fi ;;
+  esac
+
+  if (( rc == 0 )) && document_validate_converted_output "$output" "$target"; then
+    info "A metadata-cleaned copy was created. The original file was not changed."
+    ok "Sanitized copy: $output"
+    if command -v termux-media-scan >/dev/null 2>&1; then termux-media-scan "$output" >/dev/null 2>&1 || true; fi
+    return 0
+  fi
+  rm -f -- "$output"
+  err "Could not create a verified metadata-cleaned copy. Original remains unchanged."
+  return 1
+}
+
 # Supported document conversions. OCR and scanned-PDF conversion are intentionally excluded.
 document_file_is_convertible() {
   local ext="$1"
@@ -855,7 +985,7 @@ PY
     rc=$?
   fi
 
-  if (( rc == 0 )) && [[ -s "$output" ]]; then
+  if (( rc == 0 )) && document_validate_converted_output "$output" "$target"; then
     info "Spreadsheet converted. The original workbook/file was not modified."
     document_offer_conversion_destination "$output"
     [[ -f "$output" ]] && ok "Converted file saved: $output"
@@ -953,7 +1083,7 @@ PY
     rc=$?
   fi
 
-  if (( rc == 0 )) && [[ -s "$output" ]]; then
+  if (( rc == 0 )) && document_validate_converted_output "$output" "$target"; then
     info "Presentation converted. The original file was not modified."
     document_offer_conversion_destination "$output"
     [[ -f "$output" ]] && ok "Converted file saved: $output"
