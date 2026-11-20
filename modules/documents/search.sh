@@ -120,8 +120,8 @@ document_selected_file_info() {
   fi
 
   if document_file_is_known "$ext"; then
-    ok "Recognized file type. It can be considered by the conversion phase."
-    info "Conversion is not enabled in Phase 1; the original file has not been changed."
+    ok "Recognized file type."
+    info "Use Document Manager > Convert a document for supported conversions. The original remains unchanged."
   else
     warn "This file type is not in the planned conversion list yet."
     info "The file remains untouched."
