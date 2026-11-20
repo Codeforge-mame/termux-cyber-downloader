@@ -55,7 +55,11 @@ APK DOWNLOAD
 NETWORK SHORTCUT
   Menu option 13 opens Android Radio Information.
   Choose LTE only for a 4G lock; restore Auto or LTE/WCDMA if calls or
-  mobile service are affected. The general Android control panel is removed.\n\nTOOL UPDATE CENTER\n  Menu option 14 updates Termux packages, yt-dlp, optional Python media tools,\n  and displays installed tool versions.
+  mobile service are affected. The general Android control panel is removed.
+
+TOOL UPDATE CENTER
+  Menu option 14 updates Termux packages, yt-dlp, optional Python media tools,
+  and displays installed tool versions. Use the update check to see pending updates.
 
 MOVIE / SERIES
   Search Google, JustWatch, or IMDb for legitimate sources.
