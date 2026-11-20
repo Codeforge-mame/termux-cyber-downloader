@@ -2,7 +2,7 @@
 apk_menu() {
   banner "APK DOWNLOAD"
   printf " 1) Download from direct APK URL\n 2) APKPure via apkeep (unverified third-party source)\n 3) F-Droid via apkeep\n 0) Back\n"
-  ask "Choose: " a
+  ask_choice "Choose: " a "1 2 3 0" || return 1
   case "$a" in
     1)
       local url name
