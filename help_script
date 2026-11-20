@@ -54,13 +54,14 @@ DOCUMENT MANAGER
   accessible internal shared storage and detected SD/USB/removable volumes.
   Storage locations are checked and labelled read/write or read only.
   Select multiple results with indexes (1 35 74), commas, or ranges (1-5).
-  Choose Copy, Move, or Delete. Delete requires typing DELETE to confirm.
+  Choose Copy, Move, Delete, or Convert when the selection contains supported document files. Delete requires typing DELETE to confirm.
   Copy/move supports destination folders on storage locations Termux can access.
   Name collisions can be skipped, auto-renamed to keep both, or replaced after
   a separate confirmation. Move verifies the copied bytes before deleting source.
   Search and inspection do not modify original files.
-  Convert DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF with optional Pandoc.
-  Selectable-text PDF conversion needs Poppler; scanned PDFs are not OCR'd.
+  Convert supported selected DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF files
+  with optional Pandoc. Selectable-text PDF conversion needs Poppler; scanned PDFs
+  are not OCR'd. There is no separate converter menu.
   Converted files are saved beside the source or in Documents if the source
   location is read-only; originals are never overwritten.
   Copy/move destinations are limited to locations that pass a write-access test.
