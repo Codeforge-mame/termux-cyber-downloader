@@ -2,7 +2,7 @@
 telegram_download() {
   local url="$1" threads_choice threads rc res telegram_dir="$VIDEO_DIR/Telegram"
   local tdl_bin
-  [ -n "$url" ] || ask "Telegram public link: " url
+  [ -n "$url" ] || ask_url "Telegram public link: " url || return 1
   [[ "$url" == *t.me/* ]] || { err "This does not look like a Telegram link."; return 1; }
   mkdir -p "$telegram_dir" || { err "Could not create Telegram folder: $telegram_dir"; return 1; }
 
