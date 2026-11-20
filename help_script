@@ -67,8 +67,9 @@ DOCUMENT MANAGER
   not OCR'd.
   Read/Open is offered only when exactly one file is selected. It previews text
   in the terminal, extracts selectable PDF text, or opens media with Termux:API.
-  All converted files go to Documents/Converted, regardless of source location.
-  Originals are never modified and existing converted files are not overwritten.
+  After conversion, choose Documents/Converted or a detected writable SD
+  card / USB drive. Removable copies go under CyberForge/Converted. A volume is
+  offered only when Termux can read and write it. Originals are never modified.
   Copy/move destinations are limited to locations that pass a write-access test.
   Download a document or archive from a URL using the download option.
   OCR and document-content search are not included.
