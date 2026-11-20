@@ -519,8 +519,8 @@ document_local_type_search() {
 # Supported document conversions. OCR and scanned-PDF conversion are intentionally excluded.
 document_file_is_convertible() {
   local ext="$1"
-  ext="\${ext##*.}"
-  ext="\${ext,,}"
+  ext="${ext##*.}"
+  ext="${ext,,}"
   case "$ext" in docx|odt|epub|html|htm|md|txt|rtf|pdf) return 0 ;; *) return 1 ;; esac
 }
 
@@ -528,7 +528,7 @@ document_convert_file() {
   local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
   document_file_is_convertible "$src" || { warn "Conversion is not supported for: $src"; return 1; }
-  ext="$src"; ext="\${ext##*.}"; ext="\${ext,,}"
+  ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
   if [[ "$ext" == "pdf" ]]; then
     command -v pdftotext >/dev/null 2>&1 || { warn "PDF extraction requires Poppler: pkg install poppler"; info "Scanned PDFs are not supported without OCR."; return 1; }
     printf '%s\n' "1) TXT" "2) DOCX" "3) ODT" "4) HTML" "5) Markdown" "0) Cancel"
@@ -549,12 +549,12 @@ document_convert_file() {
     info "Source folder is read-only. Output: $output_dir"
   }
   rm -f -- "$probe"
-  filename="$src"; filename="\${filename##*/}"; filename="\${filename%.*}"
+  filename="$src"; filename="${filename##*/}"; filename="${filename%.*}"
   stem="$output_dir/$filename"
-  if [[ "$target" == "markdown" ]]; then output="\${stem}_converted.md"; else output="\${stem}_converted.$target"; fi
+  if [[ "$target" == "markdown" ]]; then output="${stem}_converted.md"; else output="${stem}_converted.$target"; fi
   suffix=1
   while [[ -e "$output" ]]; do
-    if [[ "$target" == "markdown" ]]; then output="\${stem}_converted_$suffix.md"; else output="\${stem}_converted_$suffix.$target"; fi
+    if [[ "$target" == "markdown" ]]; then output="${stem}_converted_$suffix.md"; else output="${stem}_converted_$suffix.$target"; fi
     ((suffix += 1))
   done
   if [[ "$ext" == "pdf" ]]; then
