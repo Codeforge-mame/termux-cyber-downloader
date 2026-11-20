@@ -27,17 +27,29 @@ video_download() {
   return "$rc"
 }
 playlist_download() {
-  local url="${1:-}" rc
+  local url="${1:-}" folder_name playlist_dir rc
   [ -n "$url" ] || ask "Playlist URL: " url
   valid_url "$url" || { err "Please enter a valid http(s) playlist URL."; return 1; }
+
+  ask "Folder name for this playlist (inside Movies): " folder_name
+  # Keep the folder name safe: no path separators, traversal, or shell metacharacters.
+  folder_name="$(printf '%s' "$folder_name" | tr -cd '[:alnum:] _.-' | cut -c1-80)"
+  folder_name="${folder_name#" ${folder_name%%[![:space:]]*}"}"
+  folder_name="${folder_name%" ${folder_name##*[![:space:]]}"}"
+  case "$folder_name" in
+    ""|"."|"..") err "Please enter a valid folder name."; return 1 ;;
+  esac
+
   resolution_menu || return 1
-  info "Downloading playlist into its own folder under $VIDEO_DIR."
-  run_ytdlp -4 -N 2 --yes-playlist --continue --download-archive "$ARCHIVE_FILE" -f "$FORMAT" --merge-output-format mp4 -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
+  playlist_dir="$VIDEO_DIR/$folder_name"
+  mkdir -p "$playlist_dir" || { err "Could not create playlist folder: $playlist_dir"; return 1; }
+  info "Playlist will be saved in: $playlist_dir"
+  run_ytdlp -4 -N 2 --yes-playlist --continue --download-archive "$ARCHIVE_FILE" -f "$FORMAT" --merge-output-format mp4 -P "$playlist_dir" -o "%(playlist_index)03d - %(title)s.%(ext)s" "$url"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     record_history playlist "$url"
-    scan_media "$VIDEO_DIR"
-    ok "Playlist download finished."
+    scan_media "$playlist_dir"
+    ok "Playlist download finished. Folder: $folder_name"
   fi
   return "$rc"
 }
