@@ -153,6 +153,7 @@ Choose **14) Tool update center** from the main menu.
 - **Update optional Python media tools:** upgrades gallery-dl and Pillow only if installed.
 - **Update all installed CyberForge tools:** updates Termux packages and installed Python media tools.
 - **Show installed tool versions:** displays versions for the available command-line tools.
+- **Check which tools need updates:** refreshes Termux package indexes and lists upgradable Termux and Python packages.
 
 Updates require an internet connection. Review package-manager output if an update fails. The optional `apkeep` tool is not managed by the Python updater.
 
