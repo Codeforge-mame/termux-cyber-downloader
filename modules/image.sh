@@ -2,7 +2,7 @@
 
 image_download() {
   local url="${1:-}" clean_url rc
-  [ -n "$url" ] || ask "Image or post URL: " url
+  [ -n "$url" ] || ask_url "Image or post URL: " url || return 1
   valid_url "$url" || { err "Please enter a valid http(s) URL."; return 1; }
   mkdir -p "$PIC_DIR"
   clean_url="${url%%\?*}"
@@ -31,7 +31,7 @@ image_download() {
 
 thumbnail_download() {
   local url="${1:-}"
-  [ -n "$url" ] || ask "Video URL for thumbnail: " url
+  [ -n "$url" ] || ask_url "Video URL for thumbnail: " url || return 1
   valid_url "$url" || { err "Please enter a valid http(s) URL."; return 1; }
   require_cmd yt-dlp yt-dlp || return 1
   mkdir -p "$PIC_DIR"
@@ -65,7 +65,7 @@ image_choose_source() {
   ask_choice "Choose: " choice "1 2 0" || return 1
   case "$choice" in
     1)
-      [ -n "$url" ] || ask "Image or post URL: " url
+      [ -n "$url" ] || ask_url "Image or post URL: " url || return 1
       valid_url "$url" || return 1
       temp="$(mktemp -d)" || return 1
       local clean="${url%%\?*}"
