@@ -141,13 +141,14 @@ cyber-help
 Choose **12) Document Manager** from the main menu.
 
 - **Find local files:** search by filename or keyword, then choose internal shared storage, a detected removable volume, or all detected accessible locations.
+- **Search by file type:** find PDFs, Word/text documents, spreadsheets, presentations, images, archives, audio, video, or APK packages. You can also enter a custom extension.
 - **Numbered results:** select a result to inspect its full path, file size, extension, readability, and MIME type when the optional `file` command is available.
 - **Read-only search:** Phase 1 does not rename, move, overwrite, or modify the original file.
 - **Download a file:** the existing URL downloader remains available inside this menu and keeps its existing download behavior.
 
 Before searching, run `termux-setup-storage` and grant Android storage permission. Removable SD/USB storage is only searchable when Android exposes a mounted path that Termux can read. Android may restrict access to some folders, so the scanner reports only accessible locations.
 
-**Planned later phases:** search by file type, search inside document contents, and convert supported formats. Conversion is not included in Phase 1.
+**Planned later phases:** search inside document contents and convert supported formats. Conversion is not included in this phase.
 
 ## Video + subtitle downloads
 
