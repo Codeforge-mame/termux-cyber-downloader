@@ -137,7 +137,7 @@ document_selected_file_info() {
 # only after the user explicitly selects files and confirms an operation.
 document_manage_matches() {
   local title="$1" choice token start end n idx src dest base ext stem candidate suffix action
-  local selection copied moved deleted failed skipped=0 tmpcopy source_real target_real
+  local selection copied moved deleted failed skipped=0 tmpcopy source_real target_real attempt valid allowed
   local -a visible=() selected=() tokens=()
   local -A seen=()
   local total="${#DOC_RESULT_FILES[@]}"
@@ -152,28 +152,39 @@ document_manage_matches() {
   done
   (( total > 100 )) && warn "Showing the first 100 results. Narrow the search before managing files."
   printf '\n'
-  ask "Select files (e.g. 1 35 74 or 1-5; 0 to return): " selection
-  [[ "$selection" == "0" || -z "$selection" ]] && return 0
-  selection="${selection//,/ }"
-  read -r -a tokens <<< "$selection"
-
-  for token in "${tokens[@]}"; do
-    if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-      start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
-      if (( start < 1 || end < start || end > ${#visible[@]} )); then
-        warn "Invalid range: $token"; return 1
-      fi
-      for ((n=start; n<=end; n++)); do
-        idx=$((n - 1))
+  valid=0
+  for ((attempt=1; attempt<=3; attempt++)); do
+    selected=(); tokens=(); seen=()
+    ask "Select files (e.g. 1 35 74 or 1-5; 0 to return): " selection
+    [[ "$selection" == "0" || -z "$selection" ]] && return 0
+    selection="${selection//,/ }"
+    read -r -a tokens <<< "$selection"
+    valid=1
+    for token in "${tokens[@]}"; do
+      if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+        start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
+        if (( start < 1 || end < start || end > ${#visible[@]} )); then
+          err "Invalid range: $token. Choose between 1 and ${#visible[@]} (attempt $attempt/3)."
+          valid=0; break
+        fi
+        for ((n=start; n<=end; n++)); do
+          idx=$((n - 1))
+          if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
+        done
+      elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
+        idx=$((token - 1))
         if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
-      done
-    elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
-      idx=$((token - 1))
-      if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
-    else
-      warn "Invalid file selection: $token"; return 1
-    fi
+      else
+        err "Invalid file selection: $token. Use indexes such as 1 3 5 or ranges like 1-5 (attempt $attempt/3)."
+        valid=0; break
+      fi
+    done
+    (( valid == 1 )) && break
   done
+  if (( valid == 0 )); then
+    warn "Maximum attempts reached. Returning to the previous menu."
+    return 1
+  fi
 
   (( ${#selected[@]} > 0 )) || return 0
   banner "SELECTED FILES"
@@ -210,11 +221,10 @@ document_manage_matches() {
         printf ' %s) %s\n    %s\n' "$((idx + 1))" "${DOC_SEARCH_LABELS[$idx]}" "${DOC_SEARCH_PATHS[$idx]}"
       done
       printf ' 0) Cancel\n'
-      ask "Choose destination location: " choice
-      [[ "$choice" == "0" || -z "$choice" ]] && return 0
-      if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#DOC_SEARCH_PATHS[@]} )); then
-        warn "Invalid destination."; return 1
-      fi
+      allowed="0"
+      for idx in "${!DOC_SEARCH_PATHS[@]}"; do allowed+=" $((idx + 1))"; done
+      ask_choice "Choose destination location: " choice "$allowed" || return 1
+      [[ "$choice" == "0" ]] && return 0
       dest="${DOC_SEARCH_PATHS[$((choice - 1))]}"
       ask "Destination folder (blank = selected location): " base
       if [[ -n "$base" ]]; then
@@ -316,7 +326,9 @@ document_local_search() {
   done
   printf ' a) All detected accessible locations\n'
   printf ' 0) Cancel\n'
-  ask "Choose location: " choice
+  local allowed="0 a A"
+  for index in "${!DOC_SEARCH_PATHS[@]}"; do allowed+=" $((index + 1))"; done
+  ask_choice "Choose location: " choice "$allowed" || return 1
 
   case "$choice" in
     0|"") return 0 ;;
