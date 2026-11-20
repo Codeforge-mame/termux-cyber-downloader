@@ -1,10 +1,26 @@
 #!/data/data/com.termux/files/usr/bin/bash
 main_menu() {
-  local url="$1" choice
+  local url="$1" choice again
   while true; do
-    banner "CYBERFORGE ANDROID TOOLKIT 2.1"
-    printf " 1) Video download (resolution)\n 2) Turbo video (-N 8)\n 3) Trim video clip\n 4) Audio MP3\n 5) Telegram download (choose threads)\n 6) Sequential queue\n 7) APK downloader\n 8) Movie title search\n 9) Playlist download (own folder)\n10) Image & media tools\n11) Video extras (video + subtitles / video-only)\n12) Document / file download\n13) Open 4G network settings\n14) Tool update center\n h) Help\n 0) Exit\n"
-    ask "cyberforge@termux:~# " choice
+    banner "CYBERFORGE TOOLKIT 2.1"
+    printf '%s\n' \
+      " 1) Video download" \
+      " 2) Turbo video" \
+      " 3) Trim video" \
+      " 4) Audio MP3" \
+      " 5) Telegram download" \
+      " 6) Sequential queue" \
+      " 7) APK downloader" \
+      " 8) Movie search" \
+      " 9) Playlist download" \
+      "10) Image & media tools" \
+      "11) Video + subtitles" \
+      "12) Documents / files" \
+      "13) 4G network settings" \
+      "14) Tool update center" \
+      " h) Help" \
+      " 0) Exit"
+    ask "cyberforge> " choice
     case "$choice" in
       1) video_download "$url" normal ;;
       2) video_download "$url" turbo ;;
@@ -24,7 +40,7 @@ main_menu() {
       0|q|Q) break ;;
       *) warn "Unknown selection." ;;
     esac
-    printf "\n"
+    printf '\n'
     ask "Return to main menu? [Y/n]: " again
     [[ "$again" =~ ^[Nn]$ ]] && break
     url=""
