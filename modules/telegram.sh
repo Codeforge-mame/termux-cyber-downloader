@@ -30,7 +30,7 @@ telegram_download() {
 
   if [ "$rc" -ne 0 ]; then
     err "Telegram download did not complete (exit code $rc)."
-    info "Retry the same link. The patched tdl build preserves the partial file and resumes from its existing byte offset."
+    info "If the pinned resume build is installed, retrying the same link should continue from the saved byte offset."
     return "$rc"
   fi
 
