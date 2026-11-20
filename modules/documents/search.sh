@@ -485,7 +485,7 @@ document_local_type_search() {
 
 # Phase 3: convert supported documents without OCR. The source is never replaced.
 document_conversion_menu() {
-  local query choice idx src ext target from output stem suffix tmp rc attempt valid=0
+  local query choice idx src ext target from output stem suffix tmp rc attempt valid=0 output_dir filename probe
   local -a roots=() candidates=()
   banner "DOCUMENT CONVERSION"
   ask_nonempty "Search filename to convert: " query || return 1
@@ -558,7 +558,19 @@ document_conversion_menu() {
       warn "Source and target formats are the same."; return 1;
     }
   fi
-  stem="${src%.*}"
+  output_dir="$(dirname "$src")"
+  probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || {
+    output_dir="$DOC_DIR"
+    mkdir -p "$output_dir" 2>/dev/null || { err "No writable output folder is available."; return 1; }
+    probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || {
+      err "Cannot write beside the source or in Documents. Check storage permissions."
+      return 1
+    }
+    info "Source folder is read-only. Converted output will be saved in: $output_dir"
+  }
+  rm -f -- "$probe" 2>/dev/null
+  filename="${src##*/}"
+  stem="$output_dir/${filename%.*}"
   case "$target" in markdown) output="${stem}_converted.md" ;; *) output="${stem}_converted.$target" ;; esac
   suffix=1
   while [[ -e "$output" ]]; do
