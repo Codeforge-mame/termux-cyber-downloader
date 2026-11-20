@@ -18,15 +18,15 @@ term_width() {
   if ! [[ "$width" =~ ^[0-9]+$ ]] || (( width < 20 )); then
     width=40
   fi
-  (( width > 100 )) && width=100
+  if (( width > 100 )); then width=100; fi
   printf '%s' "$width"
 }
 
 banner() {
   local title="$1" width inner left right line
   width="$(term_width)"
-  (( width > 64 )) && width=64
-  (( width < 24 )) && width=24
+  if (( width > 64 )); then width=64; fi
+  if (( width < 24 )); then width=24; fi
   inner=$((width - 4))
 
   if (( ${#title} > inner )); then
