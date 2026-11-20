@@ -24,14 +24,8 @@ VIDEO EXTRAS
 
 TELEGRAM
   Telegram downloads are saved in Movies/Telegram.
-  Choose 1, 2, 4, or 8 transfer threads before downloading.
-  For byte-level resume, run this once from the project folder:
-    pkg install git golang -y
-    bash scripts/install-tdl-resume.sh
-  The installer builds a pinned tdl commit with partial-file preservation.
-  It requires Go 1.25.8+ and keeps a backup of your existing tdl binary.
-  After installation, retry the same link; interrupted partial files should
-  continue from their existing byte offset instead of restarting.
+  Choose 1, 2, 4, or 8 transfer threads with the standard tdl package.
+  The normal --continue option is used, but an interrupted file may restart.
   After a successful download, optionally create a 1080p, 720p, 480p,
   or 360p FFmpeg copy. The original file is never replaced.
 
@@ -71,9 +65,8 @@ IMAGE & MEDIA TOOLS
   assets, or a PDF.
 
 DEPENDENCIES
-  pkg install git python ffmpeg termux-api nano curl
+  pkg install git python ffmpeg termux-api nano curl tdl
   pip install -U yt-dlp
   Optional image tools: pip install -U gallery-dl pillow
-  Go 1.25.8+ is needed only for the optional patched tdl resume build.
   Install apkeep separately if you use APK source features.
 HELP
