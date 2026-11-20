@@ -745,10 +745,10 @@ document_file_is_convertible() {
 # Spreadsheet conversion: CSV <-> XLSX with openpyxl, or use LibreOffice
 # when available for XLS/XLSX/ODS and PDF interchange.
 document_convert_spreadsheet_file() {
-  local src="$1" ext="\${1##*.}" choice target output_dir filename output suffix probe
+  local src="$1" ext="${1##*.}" choice target output_dir filename output suffix probe
   local office_cmd="" rc=1 sheet
   local -a targets=()
-  ext="\${ext,,}"
+  ext="${ext,,}"
   if command -v libreoffice >/dev/null 2>&1; then office_cmd="libreoffice"
   elif command -v soffice >/dev/null 2>&1; then office_cmd="soffice"
   fi
@@ -773,28 +773,28 @@ document_convert_spreadsheet_file() {
   fi
 
   printf '\nAVAILABLE SPREADSHEET OUTPUT FORMATS\n'
-  for i in "\${!targets[@]}"; do printf ' %s) %s\n' "$((i + 1))" "\${targets[$i]^^}"; done
+  for i in "${!targets[@]}"; do printf ' %s) %s\n' "$((i + 1))" "${targets[$i]^^}"; done
   printf ' 0) Cancel\n'
   local allowed="0"
-  for i in "\${!targets[@]}"; do allowed+=" $((i + 1))"; done
-  ask_choice "Convert \${src##*/} to: " choice "$allowed" || return 1
+  for i in "${!targets[@]}"; do allowed+=" $((i + 1))"; done
+  ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
-  target="\${targets[$((choice - 1))]}"
+  target="${targets[$((choice - 1))]}"
 
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
   probe="$(mktemp "$output_dir/.cyberforge-sheet.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable."; return 1; }
   rm -f -- "$probe"
-  filename="\${src##*/}"; filename="\${filename%.*}"
-  output="$output_dir/\${filename}_converted.$target"
+  filename="${src##*/}"; filename="${filename%.*}"
+  output="$output_dir/${filename}_converted.$target"
   suffix=1
-  while [[ -e "$output" ]]; do output="$output_dir/\${filename}_converted_$suffix.$target"; ((suffix += 1)); done
+  while [[ -e "$output" ]]; do output="$output_dir/${filename}_converted_$suffix.$target"; ((suffix += 1)); done
 
   if [[ -n "$office_cmd" ]]; then
     local tmpdir generated
     tmpdir="$(mktemp -d "$output_dir/.cyberforge-office.XXXXXX" 2>/dev/null)" || return 1
     if "$office_cmd" --headless --convert-to "$target" --outdir "$tmpdir" "$src" >/dev/null 2>&1; then
-      generated="$tmpdir/\${filename}.$target"
+      generated="$tmpdir/${filename}.$target"
       if [[ -s "$generated" ]]; then mv -- "$generated" "$output" && rc=0; fi
     fi
     rm -rf -- "$tmpdir"
@@ -828,17 +828,17 @@ for name in book.sheetnames:
 book.close()
 PY
 )
-    if (( \${#sheet_names[@]} == 0 )); then err "No readable worksheet was found."; return 1; fi
-    if (( \${#sheet_names[@]} > 1 )); then
+    if (( ${#sheet_names[@]} == 0 )); then err "No readable worksheet was found."; return 1; fi
+    if (( ${#sheet_names[@]} > 1 )); then
       printf '\nWORKSHEETS\n'
-      for i in "\${!sheet_names[@]}"; do printf ' %s) %s\n' "$((i + 1))" "\${sheet_names[$i]}"; done
+      for i in "${!sheet_names[@]}"; do printf ' %s) %s\n' "$((i + 1))" "${sheet_names[$i]}"; done
       local sheet_allowed="0"
-      for i in "\${!sheet_names[@]}"; do sheet_allowed+=" $((i + 1))"; done
+      for i in "${!sheet_names[@]}"; do sheet_allowed+=" $((i + 1))"; done
       ask_choice "Choose worksheet to export: " choice "$sheet_allowed" || return 1
       [[ "$choice" == "0" ]] && return 0
-      sheet="\${sheet_names[$((choice - 1))]}"
+      sheet="${sheet_names[$((choice - 1))]}"
     else
-      sheet="\${sheet_names[0]}"
+      sheet="${sheet_names[0]}"
     fi
     python - "$src" "$output" "$sheet" <<'PY'
 import csv, sys
@@ -869,10 +869,10 @@ PY
 # Presentation conversion uses LibreOffice for real format conversion.
 # Without it, python-pptx can export PPTX slide text to a plain TXT file.
 document_convert_presentation_file() {
-  local src="$1" ext="\${1##*.}" choice target output_dir filename output suffix probe
+  local src="$1" ext="${1##*.}" choice target output_dir filename output suffix probe
   local office_cmd="" rc=1
   local -a targets=()
-  ext="\${ext,,}"
+  ext="${ext,,}"
   if command -v libreoffice >/dev/null 2>&1; then office_cmd="libreoffice"
   elif command -v soffice >/dev/null 2>&1; then office_cmd="soffice"
   fi
@@ -890,28 +890,28 @@ document_convert_presentation_file() {
   fi
 
   printf '\nAVAILABLE PRESENTATION OUTPUT FORMATS\n'
-  for i in "\${!targets[@]}"; do printf ' %s) %s\n' "$((i + 1))" "\${targets[$i]^^}"; done
+  for i in "${!targets[@]}"; do printf ' %s) %s\n' "$((i + 1))" "${targets[$i]^^}"; done
   printf ' 0) Cancel\n'
   local allowed="0"
-  for i in "\${!targets[@]}"; do allowed+=" $((i + 1))"; done
-  ask_choice "Convert \${src##*/} to: " choice "$allowed" || return 1
+  for i in "${!targets[@]}"; do allowed+=" $((i + 1))"; done
+  ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
-  target="\${targets[$((choice - 1))]}"
+  target="${targets[$((choice - 1))]}"
 
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
   probe="$(mktemp "$output_dir/.cyberforge-presentation.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable."; return 1; }
   rm -f -- "$probe"
-  filename="\${src##*/}"; filename="\${filename%.*}"
-  output="$output_dir/\${filename}_converted.$target"
+  filename="${src##*/}"; filename="${filename%.*}"
+  output="$output_dir/${filename}_converted.$target"
   suffix=1
-  while [[ -e "$output" ]]; do output="$output_dir/\${filename}_converted_$suffix.$target"; ((suffix += 1)); done
+  while [[ -e "$output" ]]; do output="$output_dir/${filename}_converted_$suffix.$target"; ((suffix += 1)); done
 
   if [[ -n "$office_cmd" ]]; then
     local tmpdir generated
     tmpdir="$(mktemp -d "$output_dir/.cyberforge-office.XXXXXX" 2>/dev/null)" || return 1
     if "$office_cmd" --headless --convert-to "$target" --outdir "$tmpdir" "$src" >/dev/null 2>&1; then
-      generated="$tmpdir/\${filename}.$target"
+      generated="$tmpdir/${filename}.$target"
       if [[ -s "$generated" ]]; then mv -- "$generated" "$output" && rc=0; fi
     fi
     rm -rf -- "$tmpdir"
@@ -923,11 +923,11 @@ source, destination = sys.argv[1:3]
 presentation = Presentation(source)
 with open(destination, "w", encoding="utf-8") as handle:
     for number, slide in enumerate(presentation.slides, 1):
-        handle.write(f"Slide {number}\\n")
+        handle.write(f"Slide {number}\n")
         for shape in slide.shapes:
             if getattr(shape, "has_text_frame", False) and shape.text.strip():
-                handle.write(shape.text.strip() + "\\n")
-        handle.write("\\n")
+                handle.write(shape.text.strip() + "\n")
+        handle.write("\n")
 PY
     rc=$?
   fi
