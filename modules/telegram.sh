@@ -1,19 +1,13 @@
 #!/data/data/com.termux/files/usr/bin/bash
 telegram_download() {
   local url="$1" threads_choice threads rc res telegram_dir="$VIDEO_DIR/Telegram"
-  local tdl_bin="${PREFIX:-}/bin/tdl"
+  local tdl_bin
   [ -n "$url" ] || ask "Telegram public link: " url
   [[ "$url" == *t.me/* ]] || { err "This does not look like a Telegram link."; return 1; }
   mkdir -p "$telegram_dir" || { err "Could not create Telegram folder: $telegram_dir"; return 1; }
 
-  if [ -x "$tdl_bin" ] && [ -s "${PREFIX:-/nonexistent}/share/termux-cyber-downloader/tdl-resume-commit" ]; then
-    info "Using patched Telegram downloader: $tdl_bin"
-  else
-    tdl_bin="$(command -v tdl 2>/dev/null || true)"
-    [ -n "$tdl_bin" ] || { err "Missing dependency: tdl"; info "Install it with: pkg install tdl"; return 1; }
-    warn "Byte-level resume build is not installed at $PREFIX/bin/tdl."
-    info "Install it with: bash scripts/install-tdl-resume.sh"
-  fi
+  tdl_bin="$(command -v tdl 2>/dev/null || true)"
+  [ -n "$tdl_bin" ] || { err "Missing dependency: tdl"; info "Install it with: pkg install tdl"; return 1; }
 
   banner "TELEGRAM DOWNLOAD THREADS"
   printf " 1) 1 thread (most conservative)\n 2) 2 threads\n 3) 4 threads\n 4) 8 threads (fastest option)\n 0) Cancel\n"
@@ -34,7 +28,7 @@ telegram_download() {
 
   if [ "$rc" -ne 0 ]; then
     err "Telegram download did not complete (exit code $rc)."
-    info "Retry the same Telegram link. The patched tdl stores incomplete data as .tmp and resumes from its existing byte offset."
+    info "You can retry the same Telegram link. The standard tdl release may restart an interrupted file."
     return "$rc"
   fi
 
