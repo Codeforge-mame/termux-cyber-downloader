@@ -488,12 +488,6 @@ document_conversion_menu() {
   local query choice idx src ext target from output stem suffix tmp rc attempt valid=0
   local -a roots=() candidates=()
   banner "DOCUMENT CONVERSION"
-  if ! command -v pandoc >/dev/null 2>&1; then
-    warn "Pandoc is needed for DOCX, ODT, EPUB, HTML, Markdown, RTF and TXT conversions."
-    info "Install it with: pkg install pandoc"
-    info "For selectable-text PDF conversion also install: pkg install poppler"
-    return 1
-  fi
   ask_nonempty "Search filename to convert: " query || return 1
   document_search_choose_roots || return 0
   roots=("${DOC_SELECTED_ROOTS[@]}")
