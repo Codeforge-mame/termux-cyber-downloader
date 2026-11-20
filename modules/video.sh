@@ -2,7 +2,7 @@
 resolution_menu() {
   banner "VIDEO RESOLUTION"
   printf " 1) Best available\n 2) 2160p\n 3) 1440p\n 4) 1080p\n 5) 720p\n 6) 480p\n 7) 360p\n 0) Cancel\n"
-  ask "Choose: " res_choice
+  ask_choice "Choose: " res_choice "1 2 3 4 5 6 7 0" || return 1
   case "$res_choice" in
     1) FORMAT='bestvideo+bestaudio/best' ;;
     2) FORMAT='bestvideo[height<=2160]+bestaudio/best[height<=2160]/best' ;;
@@ -70,7 +70,7 @@ video_subtitle_download() {
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   banner "VIDEO + ENGLISH SUBTITLES"
   printf " 1) Best available + English subtitles\n 2) 720p + English subtitles\n 3) 480p + English subtitles\n 4) 360p + English subtitles\n 0) Cancel\n"
-  ask "Choose: " choice
+  ask_choice "Choose: " choice "1 2 3 4 0" || return 1
   case "$choice" in
     1) format='bv+ba/b' ;;
     2) format='bv[height<=720]+ba/b[height<=720]/b' ;;
@@ -131,7 +131,7 @@ video_extras_menu() {
   while true; do
     banner "VIDEO EXTRAS"
     printf " 1) Download video with English subtitles\n 2) Download video only (choose resolution, no audio)\n 0) Back\n"
-    ask "Choose: " choice
+    ask_choice "Choose: " choice "1 2 0" || return 0
     case "$choice" in
       1) video_subtitle_download "$url"; url="" ;;
       2) video_only_download "$url"; url="" ;;
