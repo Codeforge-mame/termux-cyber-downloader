@@ -916,18 +916,39 @@ document_convert_presentation_file() {
     fi
     rm -rf -- "$tmpdir"
   else
+    # PPTX is a ZIP package. Extract slide text with Python's standard library,
+    # avoiding python-pptx/lxml compilation on Termux.
     python - "$src" "$output" <<'PY'
+import re
 import sys
-from pptx import Presentation
+import zipfile
+import xml.etree.ElementTree as ET
+
 source, destination = sys.argv[1:3]
-presentation = Presentation(source)
-with open(destination, "w", encoding="utf-8") as handle:
-    for number, slide in enumerate(presentation.slides, 1):
-        handle.write(f"Slide {number}\n")
-        for shape in slide.shapes:
-            if getattr(shape, "has_text_frame", False) and shape.text.strip():
-                handle.write(shape.text.strip() + "\n")
-        handle.write("\n")
+try:
+    with zipfile.ZipFile(source) as package:
+        slides = [
+            name for name in package.namelist()
+            if re.fullmatch(r"ppt/slides/slide\\d+\\.xml", name)
+        ]
+        slides.sort(key=lambda name: int(re.search(r"slide(\\d+)\\.xml$", name).group(1)))
+        if not slides:
+            raise ValueError("No slide XML files were found")
+        with open(destination, "w", encoding="utf-8") as output_file:
+            for number, slide_name in enumerate(slides, 1):
+                root = ET.fromstring(package.read(slide_name))
+                texts = [
+                    node.text.strip()
+                    for node in root.iter()
+                    if node.tag.endswith("}t") and node.text and node.text.strip()
+                ]
+                output_file.write(f"Slide {number}\\n")
+                if texts:
+                    output_file.write("\\n".join(texts) + "\\n")
+                output_file.write("\\n")
+except Exception as exc:
+    print(f"PPTX text extraction failed: {exc}", file=sys.stderr)
+    sys.exit(1)
 PY
     rc=$?
   fi
