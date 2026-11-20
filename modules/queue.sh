@@ -86,7 +86,7 @@ queue_menu() {
   while true; do
     banner "SEQUENTIAL DOWNLOAD QUEUE"
     printf " 1) Add URL\n 2) Edit queue in nano\n 3) Show queue\n 4) Run queue\n 5) Clear queue\n 0) Back\n"
-    ask "Choose: " q
+    ask_choice "Choose: " q "1 2 3 4 5 0" || { return 0; }
     case "$q" in
       1) queue_add ;;
       2) queue_edit ;;
@@ -109,7 +109,7 @@ queue_menu() {
         fi
         ;;
       0) return 0 ;;
-      *) warn "Invalid queue option." ;;
+      *) warn "Invalid selection."; continue ;;
     esac
     printf "\n"
   done
