@@ -132,6 +132,156 @@ document_selected_file_info() {
   esac
 }
 
+
+# Shared numbered-result manager. Search itself remains read-only; changes happen
+# only after the user explicitly selects files and confirms an operation.
+document_manage_matches() {
+  local title="$1" choice token start end n idx src dest base ext stem candidate suffix action
+  local selection copied moved deleted failed skipped=0
+  local -a visible=() selected=() tokens=()
+  local -A seen=()
+  local total="${#DOC_RESULT_FILES[@]}"
+
+  (( total > 0 )) || { warn "No matching files were found."; return 0; }
+  banner "$title"
+  printf 'Found %s matching file(s).\\n' "$total"
+  for idx in "${!DOC_RESULT_FILES[@]}"; do
+    (( idx >= 100 )) && break
+    visible+=("${DOC_RESULT_FILES[$idx]}")
+    printf '\\n%s) %s\\n   %s\\n' "$((idx + 1))" "${DOC_RESULT_FILES[$idx]##*/}" "${DOC_RESULT_FILES[$idx]}"
+  done
+  (( total > 100 )) && warn "Showing the first 100 results. Narrow the search before managing files."
+  printf '\\n'
+  ask "Select files (e.g. 1 35 74 or 1-5; 0 to return): " selection
+  [[ "$selection" == "0" || -z "$selection" ]] && return 0
+  selection="${selection//,/ }"
+  read -r -a tokens <<< "$selection"
+
+  for token in "${tokens[@]}"; do
+    if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+      start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
+      if (( start < 1 || end < start || end > ${#visible[@]} )); then
+        warn "Invalid range: $token"; return 1
+      fi
+      for ((n=start; n<=end; n++)); do
+        idx=$((n - 1))
+        if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
+      done
+    elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
+      idx=$((token - 1))
+      if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
+    else
+      warn "Invalid file selection: $token"; return 1
+    fi
+  done
+
+  (( ${#selected[@]} > 0 )) || return 0
+  banner "SELECTED FILES"
+  printf 'Selected %s file(s):\\n' "${#selected[@]}"
+  for src in "${selected[@]}"; do printf ' - %s\\n' "${src##*/}"; done
+  printf '\\n'
+  printf '%s\\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
+  ask "Choose operation: " action
+
+  case "$action" in
+    0|"") return 0 ;;
+    3)
+      printf '\\n'
+      warn "Deletion is permanent. These files will be removed:"
+      for src in "${selected[@]}"; do printf ' - %s\\n' "$src"; done
+      ask "Type DELETE to confirm: " choice
+      [[ "$choice" == "DELETE" ]] || { info "Deletion cancelled."; return 0; }
+      deleted=0; failed=0
+      for src in "${selected[@]}"; do
+        if [ -f "$src" ] && [ -w "$src" ] && rm -- "$src" 2>/dev/null; then
+          ((deleted += 1)); ok "Deleted: ${src##*/}"
+        else
+          ((failed += 1)); err "Could not delete: $src"
+        fi
+      done
+      printf '\\nDelete summary: %s deleted, %s failed.\\n' "$deleted" "$failed"
+      ;;
+    1|2)
+      document_search_discover_roots
+      if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
+        err "No accessible destination storage was detected."; return 1
+      fi
+      printf '\\nDESTINATION LOCATIONS\\n'
+      for idx in "${!DOC_SEARCH_PATHS[@]}"; do
+        printf ' %s) %s\\n    %s\\n' "$((idx + 1))" "${DOC_SEARCH_LABELS[$idx]}" "${DOC_SEARCH_PATHS[$idx]}"
+      done
+      printf ' 0) Cancel\\n'
+      ask "Choose destination location: " choice
+      [[ "$choice" == "0" || -z "$choice" ]] && return 0
+      if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#DOC_SEARCH_PATHS[@]} )); then
+        warn "Invalid destination."; return 1
+      fi
+      dest="${DOC_SEARCH_PATHS[$((choice - 1))]}"
+      ask "Destination folder (blank = selected location): " base
+      if [[ -n "$base" ]]; then
+        if [[ "$base" = /* ]]; then dest="$base"; else dest="$dest/$base"; fi
+      fi
+      if [ -e "$dest" ] && [ ! -d "$dest" ]; then
+        err "Destination exists but is not a directory."; return 1
+      fi
+      if [ ! -d "$dest" ]; then
+        ask "Directory does not exist. Create it? [y/N]: " choice
+        [[ "$choice" =~ ^[Yy]$ ]] || { info "Operation cancelled."; return 0; }
+        mkdir -p -- "$dest" 2>/dev/null || { err "Could not create destination directory."; return 1; }
+      fi
+      [ -w "$dest" ] && [ -x "$dest" ] || { err "Destination is not writable by Termux."; return 1; }
+
+      copied=0; moved=0; failed=0
+      for src in "${selected[@]}"; do
+        [ -f "$src" ] && [ -r "$src" ] || { ((failed += 1)); err "Source unavailable: $src"; continue; }
+        base="${src##*/}"
+        candidate="$dest/$base"
+        if [ -e "$candidate" ]; then
+          printf '\\nDestination already contains: %s\\n' "$base"
+          printf '%s\\n' " s) Skip" " r) Keep both (automatic new filename)" " o) Replace existing file"
+          ask "Choose for this file [s/r/o]: " choice
+          case "$choice" in
+            r|R)
+              stem="$base"; ext=""
+              if [[ "$base" == *.* && "$base" != .* ]]; then ext=".${base##*.}"; stem="${base%.*}"; fi
+              suffix=1
+              while [ -e "$dest/$stem (copy $suffix)$ext" ]; do ((suffix += 1)); done
+              candidate="$dest/$stem (copy $suffix)$ext"
+              ;;
+            o|O)
+              ask "Type REPLACE to overwrite $base: " choice
+              [[ "$choice" == "REPLACE" ]] || { ((skipped += 1)); info "Skipped: $base"; continue; }
+              ;;
+            *) ((skipped += 1)); info "Skipped: $base"; continue ;;
+          esac
+        fi
+        if cp -p -- "$src" "$candidate" 2>/dev/null && cmp -s -- "$src" "$candidate"; then
+          ((copied += 1))
+          if [[ "$action" == "2" ]]; then
+            if rm -- "$src" 2>/dev/null; then
+              ((moved += 1)); ok "Moved: ${src##*/}"
+            else
+              ((failed += 1)); err "Copied but could not remove original: $src"
+            fi
+          else
+            ok "Copied: ${src##*/}"
+          fi
+        else
+          rm -f -- "$candidate" 2>/dev/null
+          ((failed += 1)); err "Copy/verification failed: $src"
+        fi
+      done
+      if [[ "$action" == "2" ]]; then
+        printf '\\nMove summary: %s moved, %s skipped, %s failed.\\n' "$moved" "$skipped" "$failed"
+        info "A source is removed only after its destination copy passes byte-for-byte verification."
+      else
+        printf '\\nCopy summary: %s copied, %s skipped, %s failed.\\n' "$copied" "$skipped" "$failed"
+      fi
+      ;;
+    *) warn "Unknown operation." ;;
+  esac
+}
+
 document_local_search() {
   local keyword choice index selected root tmp count=0 shown=0
   local -a roots=() labels=() matches=()
@@ -191,28 +341,8 @@ document_local_search() {
     info "Storage Android does not expose to Termux cannot be searched by this scanner."
     return 0
   fi
-
-  banner "SEARCH RESULTS"
-  printf 'Found %s matching file(s).\n' "$count"
-  for index in "${!matches[@]}"; do
-    (( shown >= 100 )) && break
-    printf '\n%s) %s\n' "$((index + 1))" "${matches[$index]##*/}"
-    printf '   %s\n' "${matches[$index]}"
-    ((shown += 1))
-  done
-  if (( count > shown )); then
-    warn "Showing the first $shown results. Refine your keyword to narrow the list."
-  fi
-
-  printf '\n'
-  ask "Select a result number (0 to return): " choice
-  [[ "$choice" == "0" || -z "$choice" ]] && return 0
-  if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= shown )); then
-    document_selected_file_info "${matches[$((choice - 1))]}"
-  else
-    warn "Invalid result number."
-    return 1
-  fi
+  DOC_RESULT_FILES=("${matches[@]}")
+  document_manage_matches "FILENAME SEARCH RESULTS"
 }
 
 document_search_choose_roots() {
@@ -246,35 +376,11 @@ document_search_choose_roots() {
 }
 
 document_search_show_matches() {
-  local tmp="$1" title="$2" selected choice index count shown=0
-  local -a matches=()
-  while IFS= read -r -d '' selected; do matches+=("$selected"); done < "$tmp"
+  local tmp="$1" title="$2" selected
+  DOC_RESULT_FILES=()
+  while IFS= read -r -d '' selected; do DOC_RESULT_FILES+=("$selected"); done < "$tmp"
   rm -f "$tmp"
-  count="${#matches[@]}"
-  if (( count == 0 )); then
-    warn "No matching files were found in the selected accessible locations."
-    return 0
-  fi
-  banner "$title"
-  printf 'Found %s matching file(s).\n' "$count"
-  for index in "${!matches[@]}"; do
-    (( shown >= 100 )) && break
-    printf '\n%s) %s\n' "$((index + 1))" "${matches[$index]##*/}"
-    printf '   %s\n' "${matches[$index]}"
-    ((shown += 1))
-  done
-  if (( count > shown )); then
-    warn "Showing the first $shown results. Refine the search to narrow the list."
-  fi
-  printf '\n'
-  ask "Select a result number (0 to return): " choice
-  [[ "$choice" == "0" || -z "$choice" ]] && return 0
-  if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= shown )); then
-    document_selected_file_info "${matches[$((choice - 1))]}"
-  else
-    warn "Invalid result number."
-    return 1
-  fi
+  document_manage_matches "$title"
 }
 
 document_local_type_search() {
