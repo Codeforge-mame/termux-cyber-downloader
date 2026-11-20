@@ -133,7 +133,7 @@ document_selected_file_info() {
 
   if document_file_is_known "$ext"; then
     ok "Recognized file type."
-    info "Use Document Manager > Convert a document for supported conversions. The original remains unchanged."
+    info "Use the Convert action after selecting this file. The original remains unchanged."
   else
     warn "This file type is not in the planned conversion list yet."
     info "The file remains untouched."
@@ -216,11 +216,32 @@ document_manage_matches() {
   printf 'Selected %s file(s):\n' "${#selected[@]}"
   for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
   printf '\n'
-  printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
-  ask_choice "Choose operation: " action "1 2 3 0" || return 1
+  local can_convert=0
+  for src in "${selected[@]}"; do
+    if document_file_is_convertible "$src"; then can_convert=1; break; fi
+  done
+  if (( can_convert )); then
+    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 4) Convert supported selected files" " 0) Cancel"
+    ask_choice "Choose operation: " action "1 2 3 4 0" || return 1
+  else
+    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
+    ask_choice "Choose operation: " action "1 2 3 0" || return 1
+  fi
 
   case "$action" in
     0|"") return 0 ;;
+    4)
+      local convert_count=0 convert_failed=0
+      for src in "${selected[@]}"; do
+        if document_file_is_convertible "$src"; then
+          if document_convert_file "$src"; then ((convert_count += 1)); else ((convert_failed += 1)); fi
+        else
+          warn "Skipped unsupported file: ${src##*/}"
+          ((convert_failed += 1))
+        fi
+      done
+      printf '\nConversion summary: %s converted, %s skipped/failed.\n' "$convert_count" "$convert_failed"
+      ;;
     3)
       printf '\n'
       warn "Deletion is permanent. These files will be removed:"
@@ -495,132 +516,59 @@ document_local_type_search() {
 }
 
 
-# Phase 3: convert supported documents without OCR. The source is never replaced.
-document_conversion_menu() {
-  local query choice idx src ext target from output stem suffix tmp rc attempt valid=0 output_dir filename probe
-  local -a roots=() candidates=()
-  banner "DOCUMENT CONVERSION"
-  ask_nonempty "Search filename to convert: " query || return 1
-  document_search_choose_roots || return 0
-  roots=("${DOC_SELECTED_ROOTS[@]}")
-  for idx in "${!roots[@]}"; do
-    while IFS= read -r -d '' src; do candidates+=("$src"); done < <(
-      find "${roots[$idx]}" -type f \( -iname '*.docx' -o -iname '*.odt' -o -iname '*.epub' -o -iname '*.html' -o -iname '*.htm' -o -iname '*.md' -o -iname '*.txt' -o -iname '*.rtf' -o -iname '*.pdf' \) -iname "*$query*" -print0 2>/dev/null
-    )
-  done
-  if (( ${#candidates[@]} == 0 )); then
-    warn "No supported documents matched that filename."
-    return 0
-  fi
-  banner "SELECT DOCUMENT"
-  for idx in "${!candidates[@]}"; do
-    (( idx >= 100 )) && break
-    printf '%s) %s\n   %s\n' "$((idx + 1))" "${candidates[$idx]##*/}" "${candidates[$idx]}"
-  done
-  (( ${#candidates[@]} > 100 )) && warn "Only the first 100 results are shown."
-  for ((attempt=1; attempt<=3; attempt++)); do
-    ask "Select document number (0 = cancel): " choice
-    [[ "$choice" == "0" ]] && return 0
-    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= 100 && choice <= ${#candidates[@]} )); then
-      valid=1; break
-    fi
-    err "Select a listed number or 0 to cancel (attempt $attempt/3)."
-  done
-  (( valid == 1 )) || { warn "Maximum attempts reached."; return 1; }
-  src="${candidates[$((choice - 1))]}"
-  [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable."; return 1; }
-  ext="${src##*.}"; ext="${ext,,}"
+# Supported document conversions. OCR and scanned-PDF conversion are intentionally excluded.
+document_file_is_convertible() {
+  local ext="$1"
+  ext="\${ext##*.}"
+  ext="\${ext,,}"
+  case "$ext" in docx|odt|epub|html|htm|md|txt|rtf|pdf) return 0 ;; *) return 1 ;; esac
+}
+
+document_convert_file() {
+  local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir
+  [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
+  document_file_is_convertible "$src" || { warn "Conversion is not supported for: $src"; return 1; }
+  ext="$src"; ext="\${ext##*.}"; ext="\${ext,,}"
   if [[ "$ext" == "pdf" ]]; then
-    if ! command -v pdftotext >/dev/null 2>&1; then
-      warn "PDF text extraction requires Poppler: pkg install poppler"
-      info "Scanned PDFs are not supported because OCR is intentionally excluded."
-      return 1
-    fi
-    printf '%s\n' " 1) TXT" " 2) DOCX" " 3) ODT" " 4) HTML" " 5) Markdown" " 0) Cancel"
-    ask_choice "Convert PDF to: " choice "1 2 3 4 5 0" || return 1
-    case "$choice" in
-      1) target="txt" ;;
-      2) target="docx" ;;
-      3) target="odt" ;;
-      4) target="html" ;;
-      5) target="markdown" ;;
-      *) return 0 ;;
-    esac
-    if [[ "$target" != "txt" ]] && ! command -v pandoc >/dev/null 2>&1; then
-      warn "Pandoc is needed for PDF conversion to this format. Install: pkg install pandoc"
-      return 1
-    fi
+    command -v pdftotext >/dev/null 2>&1 || { warn "PDF extraction requires Poppler: pkg install poppler"; info "Scanned PDFs are not supported without OCR."; return 1; }
+    printf '%s\n' "1) TXT" "2) DOCX" "3) ODT" "4) HTML" "5) Markdown" "0) Cancel"
+    ask_choice "Convert $src to: " choice "1 2 3 4 5 0" || return 1
+    case "$choice" in 1) target="txt" ;; 2) target="docx" ;; 3) target="odt" ;; 4) target="html" ;; 5) target="markdown" ;; *) return 0 ;; esac
+    if [[ "$target" != "txt" ]] && ! command -v pandoc >/dev/null 2>&1; then warn "Install Pandoc: pkg install pandoc"; return 1; fi
   else
-    if ! command -v pandoc >/dev/null 2>&1; then
-      warn "Pandoc is needed for this conversion. Install it with: pkg install pandoc"
-      return 1
-    fi
-    printf '%s\n' " 1) DOCX" " 2) ODT" " 3) EPUB" " 4) HTML" " 5) Markdown" " 6) RTF" " 0) Cancel"
-    ask_choice "Convert document to: " choice "1 2 3 4 5 6 0" || return 1
-    case "$choice" in
-      1) target="docx" ;;
-      2) target="odt" ;;
-      3) target="epub" ;;
-      4) target="html" ;;
-      5) target="markdown" ;;
-      6) target="rtf" ;;
-      *) return 0 ;;
-    esac
-    [[ "$ext" == "md" && "$target" == "markdown" || "$ext" == "$target" ]] && {
-      warn "Source and target formats are the same."; return 1;
-    }
+    command -v pandoc >/dev/null 2>&1 || { warn "Install Pandoc: pkg install pandoc"; return 1; }
+    printf '%s\n' "1) DOCX" "2) ODT" "3) EPUB" "4) HTML" "5) Markdown" "6) RTF" "0) Cancel"
+    ask_choice "Convert $src to: " choice "1 2 3 4 5 6 0" || return 1
+    case "$choice" in 1) target="docx" ;; 2) target="odt" ;; 3) target="epub" ;; 4) target="html" ;; 5) target="markdown" ;; 6) target="rtf" ;; *) return 0 ;; esac
+    [[ "$ext" == "md" && "$target" == "markdown" || "$ext" == "$target" ]] && { warn "Source and target formats are the same."; return 1; }
   fi
   output_dir="$(dirname "$src")"
   probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || {
-    output_dir="$DOC_DIR"
-    mkdir -p "$output_dir" 2>/dev/null || { err "No writable output folder is available."; return 1; }
-    probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || {
-      err "Cannot write beside the source or in Documents. Check storage permissions."
-      return 1
-    }
-    info "Source folder is read-only. Converted output will be saved in: $output_dir"
+    output_dir="$DOC_DIR"; mkdir -p "$output_dir" 2>/dev/null || { err "No writable output folder."; return 1; }
+    probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || { err "Cannot write to Documents."; return 1; }
+    info "Source folder is read-only. Output: $output_dir"
   }
-  rm -f -- "$probe" 2>/dev/null
-  filename="${src##*/}"
-  stem="$output_dir/${filename%.*}"
-  case "$target" in markdown) output="${stem}_converted.md" ;; *) output="${stem}_converted.$target" ;; esac
+  rm -f -- "$probe"
+  filename="$src"; filename="\${filename##*/}"; filename="\${filename%.*}"
+  stem="$output_dir/$filename"
+  if [[ "$target" == "markdown" ]]; then output="\${stem}_converted.md"; else output="\${stem}_converted.$target"; fi
   suffix=1
   while [[ -e "$output" ]]; do
-    case "$target" in markdown) output="${stem}_converted_${suffix}.md" ;; *) output="${stem}_converted_${suffix}.$target" ;; esac
+    if [[ "$target" == "markdown" ]]; then output="\${stem}_converted_$suffix.md"; else output="\${stem}_converted_$suffix.$target"; fi
     ((suffix += 1))
   done
   if [[ "$ext" == "pdf" ]]; then
-    tmp="$(mktemp "${TMPDIR:-$PREFIX/tmp}/cyberforge-pdf-text.XXXXXX")" || {
-      err "Could not create temporary extraction file."; return 1;
-    }
-    if ! pdftotext -layout "$src" "$tmp"; then
-      rm -f "$tmp"; err "Could not extract selectable text from this PDF."; return 1
-    fi
-    if [[ "$target" == "txt" ]]; then
-      cp "$tmp" "$output"; rc=$?
-    else
-      pandoc -f plain -t "$target" -o "$output" "$tmp"; rc=$?
-    fi
+    tmpdir="$PREFIX/tmp"; [[ -n "$TMPDIR" ]] && tmpdir="$TMPDIR"
+    tmp="$(mktemp "$tmpdir/cyberforge-pdf-text.XXXXXX")" || { err "Could not create temporary extraction file."; return 1; }
+    if ! pdftotext -layout "$src" "$tmp"; then rm -f "$tmp"; err "Could not extract selectable PDF text."; return 1; fi
+    if [[ "$target" == "txt" ]]; then cp "$tmp" "$output"; rc=$?; else pandoc -f plain -t "$target" -o "$output" "$tmp"; rc=$?; fi
     rm -f "$tmp"
   else
-    case "$ext" in
-      docx) from="docx" ;;
-      odt) from="odt" ;;
-      epub) from="epub" ;;
-      html|htm) from="html" ;;
-      md|txt) from="markdown" ;;
-      rtf) from="rtf" ;;
-    esac
-    pandoc -f "$from" -t "$target" -o "$output" "$src"
-    rc=$?
+    case "$ext" in docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;; html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;; esac
+    pandoc -f "$from" -t "$target" -o "$output" "$src"; rc=$?
   fi
   if (( rc == 0 )) && [ -s "$output" ]; then
-    ok "Converted file saved: $output"
-    info "Original document was not modified."
-    scan_media "$(dirname "$output")"
-  else
-    rm -f -- "$output"
-    err "Conversion failed. Original document remains unchanged."
-    return 1
+    ok "Converted file saved: $output"; info "Original document was not modified."; scan_media "$(dirname "$output")"; return 0
   fi
+  rm -f -- "$output"; err "Conversion failed. Original document remains unchanged."; return 1
 }
