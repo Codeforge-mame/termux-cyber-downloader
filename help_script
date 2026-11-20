@@ -1,12 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
-ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
+ROOT="$SCRIPT_DIR"
+if [ ! -r "$ROOT/lib/colors.sh" ] && [ -r "$HOME/termux-cyber-downloader/lib/colors.sh" ]; then
+  ROOT="$HOME/termux-cyber-downloader"
+fi
 source "$ROOT/lib/colors.sh"
-banner "TERMUX CYBER DOWNLOADER 2.0.1 HELP"
+banner "CYBERFORGE ANDROID TOOLKIT HELP"
 cat <<'HELP'
 START
-  DL                         Open the interactive main menu
+  DL / cyberforge            Open the interactive main menu
   DL "https://..."           Open menu with a URL
-  help                       Show this help page (after installing alias)
+  cyber-help                 Show this help page
 
 SHARE MENU
   Share a supported link from another Android app to Termux.
