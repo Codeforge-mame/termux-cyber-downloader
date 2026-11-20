@@ -68,6 +68,100 @@ document_search_discover_roots() {
     document_search_add_root "SD / external storage: $name" "$path"
   done
 }
+# After conversion, let the user keep the default output or move it to
+# a detected writable SD card / USB volume. The source file is never touched.
+document_offer_conversion_destination() {
+  local converted="$1" choice idx root target_dir target_file base stem ext suffix temp
+  local -a removable_paths=() removable_labels=()
+  [ -f "$converted" ] || return 1
+
+  document_search_discover_roots
+  local internal_root
+  internal_root="$(readlink -f "$HOME/storage/shared" 2>/dev/null)"
+  for idx in "${!DOC_SEARCH_PATHS[@]}"; do
+    [[ "${DOC_SEARCH_WRITABLE[$idx]}" == "1" ]] || continue
+    root="${DOC_SEARCH_PATHS[$idx]}"
+    [[ -n "$internal_root" && "$root" == "$internal_root" ]] && continue
+    # Only removable-volume entries are offered, not another alias of internal storage.
+    case "${DOC_SEARCH_LABELS[$idx]}" in
+      "Removable storage:"*|"SD / external storage:"*)
+        removable_paths+=("$root")
+        removable_labels+=("${DOC_SEARCH_LABELS[$idx]}")
+        ;;
+    esac
+  done
+
+  printf '\nCONVERTED FILE DESTINATION\n'
+  printf '%s\n' " 1) Keep in Documents/Converted"
+  if (( ${#removable_paths[@]} > 0 )); then
+    printf '%s\n' " 2) Save to SD card / USB drive"
+  fi
+  printf ' 0) Cancel destination change (keep default)\n'
+  local allowed="1 0"
+  (( ${#removable_paths[@]} > 0 )) && allowed="1 2 0"
+  ask_choice "Choose where to keep the converted file: " choice "$allowed" || {
+    info "Keeping converted file in Documents/Converted."
+    return 0
+  }
+  case "$choice" in
+    0|1)
+      info "Converted file kept in: ${converted%/*}"
+      scan_media "${converted%/*}"
+      return 0
+      ;;
+    2) ;;
+  esac
+
+  printf '\nAVAILABLE REMOVABLE DESTINATIONS\n'
+  allowed="0"
+  for idx in "${!removable_paths[@]}"; do
+    printf ' %s) %s\n    %s\n' "$((idx + 1))" "${removable_labels[$idx]}" "${removable_paths[$idx]}"
+    allowed+=" $((idx + 1))"
+  done
+  printf ' 0) Keep default destination\n'
+  ask_choice "Choose SD / USB volume: " choice "$allowed" || {
+    info "Keeping converted file in Documents/Converted."
+    return 0
+  }
+  [[ "$choice" == "0" ]] && { info "Keeping converted file in Documents/Converted."; return 0; }
+
+  root="${removable_paths[$((choice - 1))]}"
+  target_dir="$root/CyberForge/Converted"
+  mkdir -p -- "$target_dir" 2>/dev/null || {
+    warn "Could not create a Converted folder on this volume. The file remains in Documents/Converted."
+    return 0
+  }
+  temp="$(mktemp "$target_dir/.cyberforge-transfer.XXXXXX" 2>/dev/null)" || {
+    warn "The selected volume is not writable. The file remains in Documents/Converted."
+    return 0
+  }
+  base="${converted##*/}"
+  target_file="$target_dir/$base"
+  if [[ -e "$target_file" ]]; then
+    stem="${base%.*}"; ext=""
+    [[ "$base" == *.* && "$base" != .* ]] && ext=". ${base##*.}"
+    ext="${ext// /}"
+    suffix=1
+    while [[ -e "$target_dir/$stem (copy $suffix)$ext" ]]; do ((suffix += 1)); done
+    target_file="$target_dir/$stem (copy $suffix)$ext"
+  fi
+
+  if cp -p -- "$converted" "$temp" 2>/dev/null && cmp -s -- "$converted" "$temp" &&
+     mv -- "$temp" "$target_file" 2>/dev/null; then
+    if rm -- "$converted" 2>/dev/null; then
+      ok "Converted file saved to: $target_file"
+      scan_media "$target_dir"
+    else
+      warn "Verified copy saved to $target_file, but the default copy could not be removed."
+      rm -f -- "$temp" 2>/dev/null
+    fi
+  else
+    rm -f -- "$temp" 2>/dev/null
+    warn "Could not transfer the converted file. It remains in Documents/Converted."
+  fi
+  return 0
+}
+
 document_file_category() {
   local ext="${1,,}"
   case "$ext" in
@@ -589,9 +683,9 @@ PY
     rc=$?
   fi
   if (( rc == 0 )) && [ -s "$output" ]; then
-    ok "Converted image saved: $output"
     info "Original image was not modified."
-    scan_media "$output_dir"
+    document_offer_conversion_destination "$output"
+    [[ -f "$output" ]] && ok "Converted image saved: $output"
     return 0
   fi
   rm -f -- "$output"
@@ -723,9 +817,9 @@ document_convert_file() {
   fi
 
   if (( rc == 0 )) && [ -s "$output" ]; then
-    ok "Converted file saved: $output"
     info "Original document was not modified."
-    scan_media "$output_dir"
+    document_offer_conversion_destination "$output"
+    [[ -f "$output" ]] && ok "Converted file saved: $output"
     return 0
   fi
   rm -f -- "$output"
