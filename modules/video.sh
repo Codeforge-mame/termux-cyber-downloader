@@ -16,7 +16,7 @@ resolution_menu() {
 }
 video_download() {
   local url="$1" mode="$2" speed=2
-  [ -n "$url" ] || ask "Video URL: " url
+  [ -n "$url" ] || ask_url "Video URL: " url || return 1
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   resolution_menu || return 1
   [ "$mode" = turbo ] && speed=8
@@ -27,7 +27,7 @@ video_download() {
 }
 playlist_download() {
   local url="${1:-}" folder_name playlist_dir rc
-  [ -n "$url" ] || ask "Playlist URL: " url
+  [ -n "$url" ] || ask_url "Playlist URL: " url || return 1
   valid_url "$url" || { err "Please enter a valid http(s) playlist URL."; return 1; }
   ask "Folder name for this playlist (inside Movies): " folder_name
   folder_name="$(printf '%s' "$folder_name" | tr -cd '[:alnum:] _.-' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | cut -c1-80)"
@@ -49,7 +49,7 @@ playlist_download() {
 }
 trim_download() {
   local url="$1" start_t end_t
-  [ -n "$url" ] || ask "Video URL: " url
+  [ -n "$url" ] || ask_url "Video URL: " url || return 1
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   resolution_menu || return 0
   ask "Start time (HH:MM:SS): " start_t; ask "End time (HH:MM:SS): " end_t
@@ -66,7 +66,7 @@ audio_download() {
 
 video_subtitle_download() {
   local url="${1:-}" choice format rc subtitle_dir="$VIDEO_DIR/Subtitles"
-  [ -n "$url" ] || ask "Video URL: " url
+  [ -n "$url" ] || ask_url "Video URL: " url || return 1
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   banner "VIDEO + ENGLISH SUBTITLES"
   printf " 1) Best available + English subtitles\n 2) 720p + English subtitles\n 3) 480p + English subtitles\n 4) 360p + English subtitles\n 0) Cancel\n"
@@ -100,7 +100,7 @@ video_subtitle_download() {
 
 video_only_download() {
   local url="${1:-}" rc choice format archive_tag video_only_dir="$VIDEO_DIR/VideoOnly"
-  [ -n "$url" ] || ask "Video URL (video stream without audio): " url
+  [ -n "$url" ] || ask_url "Video URL (video stream without audio): " url || return 1
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   banner "VIDEO-ONLY RESOLUTION"
   printf " 1) Best available\n 2) Up to 2160p\n 3) Up to 1440p\n 4) Up to 1080p\n 5) Up to 720p\n 6) Up to 480p\n 7) Up to 360p\n 0) Cancel\n"
