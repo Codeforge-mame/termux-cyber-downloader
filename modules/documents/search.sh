@@ -579,8 +579,17 @@ document_read_file() {
       rm -f "$tmp"; return "$rc" ;;
     docx|odt|epub|rtf)
       command -v pandoc >/dev/null 2>&1 || { warn "Reading this document requires Pandoc: pkg install pandoc"; return 1; }
-      pandoc -t plain "$src" 2>/dev/null | sed -n '1,200p'
-      info "Showing up to the first 200 lines." ;;
+      tmp="$(mktemp "${TMPDIR:-$PREFIX/tmp}/cyberforge-read.XXXXXX")" || return 1
+      if pandoc -t plain -o "$tmp" "$src" 2>/dev/null; then
+        sed -n '1,200p' "$tmp"
+        info "Showing up to the first 200 lines."
+        rc=0
+      else
+        err "Pandoc could not read this document."
+        rc=1
+      fi
+      rm -f "$tmp"
+      return "$rc" ;;
     *)
       if command -v termux-open >/dev/null 2>&1; then termux-open "$src"
       else warn "No terminal reader is available for this file type. Install Termux:API to open it with Android."; return 1
