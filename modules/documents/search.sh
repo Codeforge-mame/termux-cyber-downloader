@@ -220,13 +220,18 @@ document_manage_matches() {
   for src in "${selected[@]}"; do
     if document_file_is_convertible "$src"; then can_convert=1; break; fi
   done
+  local operation_choices="1 2 3 0"
+  printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete"
   if (( can_convert )); then
-    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 4) Convert supported selected files" " 5) Read / open selected files" " 0) Cancel"
-    ask_choice "Choose operation: " action "1 2 3 4 5 0" || return 1
-  else
-    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 5) Read / open selected files" " 0) Cancel"
-    ask_choice "Choose operation: " action "1 2 3 5 0" || return 1
+    printf '%s\n' " 4) Convert supported selected files"
+    operation_choices="1 2 3 4 0"
   fi
+  if (( ${#selected[@]} == 1 )); then
+    printf '%s\n' " 5) Read / open selected file"
+    operation_choices="$operation_choices 5"
+  fi
+  printf '%s\n' " 0) Cancel"
+  ask_choice "Choose operation: " action "$operation_choices" || return 1
 
   case "$action" in
     0|"") return 0 ;;
@@ -528,37 +533,55 @@ document_file_is_image_convertible() {
 }
 
 document_convert_image_file() {
-  local src="$1" choice ext target output_dir filename stem output suffix probe image_cmd rc
+  local src="$1" choice ext target output_dir filename stem output suffix probe image_cmd rc idx allowed="0"
+  local -a targets=()
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected image is not readable: $src"; return 1; }
   if command -v magick >/dev/null 2>&1; then image_cmd="magick"
   elif command -v convert >/dev/null 2>&1; then image_cmd="convert"
   else warn "Image conversion requires ImageMagick: pkg install imagemagick"; return 1
   fi
-  printf '%s\n' "1) JPG" "2) PNG" "3) WebP" "4) BMP" "5) GIF" "6) TIFF" "0) Cancel"
-  ask_choice "Convert image $src to: " choice "1 2 3 4 5 6 0" || return 1
-  case "$choice" in 1) target="jpg" ;; 2) target="png" ;; 3) target="webp" ;; 4) target="bmp" ;; 5) target="gif" ;; 6) target="tiff" ;; *) return 0 ;; esac
-  ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
-  [[ "$ext" == "$target" || ( "$ext" == "jpeg" && "$target" == "jpg" ) || ( "$ext" == "tif" && "$target" == "tiff" ) ]] && { warn "Source and target image formats are the same."; return 1; }
-  output_dir="$(dirname "$src")"
-  probe="$(mktemp "$output_dir/.cyberforge-image.XXXXXX" 2>/dev/null)" || {
-    output_dir="$DOC_DIR"; mkdir -p "$output_dir" 2>/dev/null || { err "No writable output folder."; return 1; }
-    probe="$(mktemp "$output_dir/.cyberforge-image.XXXXXX" 2>/dev/null)" || { err "Cannot write to Documents."; return 1; }
-    info "Source folder is read-only. Output: $output_dir"
-  }
+
+  ext="${src##*.}"; ext="${ext,,}"
+  for target in jpg png webp bmp gif tiff pdf; do
+    case "$ext:$target" in
+      jpg:jpg|jpeg:jpg|jpeg:jpeg|png:png|webp:webp|bmp:bmp|gif:gif|tif:tiff|tiff:tiff) continue ;;
+    esac
+    targets+=("$target")
+  done
+  (( ${#targets[@]} > 0 )) || { warn "No different output format is available for this image."; return 1; }
+
+  printf '\nAVAILABLE OUTPUT FORMATS\n'
+  for idx in "${!targets[@]}"; do
+    printf ' %s) %s\n' "$((idx + 1))" "${targets[$idx]^^}"
+    allowed+=" $((idx + 1))"
+  done
+  printf ' 0) Cancel\n'
+  ask_choice "Convert image ${src##*/} to: " choice "$allowed" || return 1
+  [[ "$choice" == "0" ]] && return 0
+  target="${targets[$((choice - 1))]}"
+
+  output_dir="$DOC_DIR/Converted"
+  mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create the Converted folder: $output_dir"; return 1; }
+  probe="$(mktemp "$output_dir/.cyberforge-image.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable: $output_dir"; return 1; }
   rm -f -- "$probe"
-  filename="$src"; filename="${filename##*/}"; filename="${filename%.*}"
-  stem="$output_dir/$filename"; output="${stem}_converted.$target"; suffix=1
+
+  filename="${src##*/}"; filename="${filename%.*}"
+  stem="$output_dir/$filename"
+  output="${stem}_converted.$target"; suffix=1
   while [[ -e "$output" ]]; do output="${stem}_converted_$suffix.$target"; ((suffix += 1)); done
+
   "$image_cmd" "$src" -quality 90 "$output"
   rc=$?
   if (( rc == 0 )) && [ -s "$output" ]; then
-    ok "Converted image saved: $output"; info "Original image was not modified."; scan_media "$(dirname "$output")"; return 0
+    ok "Converted image saved: $output"
+    info "Original image was not modified."
+    scan_media "$output_dir"
+    return 0
   fi
   rm -f -- "$output"
   err "Image conversion failed. This ImageMagick build may not support the source or target format."
   return 1
 }
-
 # Read text documents in the terminal and open binary/media files with Android.
 document_read_file() {
   local src="$1" ext tmp rc
@@ -606,32 +629,53 @@ document_file_is_convertible() {
 }
 
 document_convert_file() {
-  local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir
+  local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir pdf_engine candidate idx allowed="0"
+  local -a targets=()
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
   document_file_is_convertible "$src" || { warn "Conversion is not supported for: $src"; return 1; }
   if document_file_is_image_convertible "$src"; then document_convert_image_file "$src"; return $?; fi
+
   ext="$src"; ext="${ext##*.}"; ext="${ext,,}"
   if [[ "$ext" == "pdf" ]]; then
     command -v pdftotext >/dev/null 2>&1 || { warn "PDF extraction requires Poppler: pkg install poppler"; info "Scanned PDFs are not supported without OCR."; return 1; }
-    printf '%s\n' "1) TXT" "2) DOCX" "3) ODT" "4) HTML" "5) Markdown" "0) Cancel"
-    ask_choice "Convert $src to: " choice "1 2 3 4 5 0" || return 1
-    case "$choice" in 1) target="txt" ;; 2) target="docx" ;; 3) target="odt" ;; 4) target="html" ;; 5) target="markdown" ;; *) return 0 ;; esac
-    if [[ "$target" != "txt" ]] && ! command -v pandoc >/dev/null 2>&1; then warn "Install Pandoc: pkg install pandoc"; return 1; fi
+    targets=(txt docx odt html markdown)
+    printf '\nAVAILABLE OUTPUT FORMATS\n'
+    for idx in "${!targets[@]}"; do printf ' %s) %s\n' "$((idx + 1))" "${targets[$idx]^^}"; allowed+=" $((idx + 1))"; done
   else
     command -v pandoc >/dev/null 2>&1 || { warn "Install Pandoc: pkg install pandoc"; return 1; }
-    printf '%s\n' "1) DOCX" "2) ODT" "3) EPUB" "4) HTML" "5) Markdown" "6) RTF" "0) Cancel"
-    ask_choice "Convert $src to: " choice "1 2 3 4 5 6 0" || return 1
-    case "$choice" in 1) target="docx" ;; 2) target="odt" ;; 3) target="epub" ;; 4) target="html" ;; 5) target="markdown" ;; 6) target="rtf" ;; *) return 0 ;; esac
-    [[ "$ext" == "md" && "$target" == "markdown" || "$ext" == "$target" ]] && { warn "Source and target formats are the same."; return 1; }
+    for target in docx odt epub html markdown rtf pdf; do
+      case "$ext:$target" in
+        docx:docx|odt:odt|epub:epub|html:html|htm:html|md:markdown|rtf:rtf) continue ;;
+      esac
+      targets+=("$target")
+    done
+    (( ${#targets[@]} > 0 )) || { warn "No different output format is available."; return 1; }
+    printf '\nAVAILABLE OUTPUT FORMATS\n'
+    for idx in "${!targets[@]}"; do printf ' %s) %s\n' "$((idx + 1))" "${targets[$idx]^^}"; allowed+=" $((idx + 1))"; done
   fi
-  output_dir="$(dirname "$src")"
-  probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || {
-    output_dir="$DOC_DIR"; mkdir -p "$output_dir" 2>/dev/null || { err "No writable output folder."; return 1; }
-    probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || { err "Cannot write to Documents."; return 1; }
-    info "Source folder is read-only. Output: $output_dir"
-  }
+  printf ' 0) Cancel\n'
+  ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
+  [[ "$choice" == "0" ]] && return 0
+  target="${targets[$((choice - 1))]}"
+
+  if [[ "$target" == "pdf" ]]; then
+    pdf_engine=""
+    for candidate in tectonic xelatex lualatex pdflatex weasyprint wkhtmltopdf typst; do
+      if command -v "$candidate" >/dev/null 2>&1; then pdf_engine="$candidate"; break; fi
+    done
+    if [[ -z "$pdf_engine" ]]; then
+      warn "PDF output needs a Pandoc PDF engine (for example Tectonic, XeLaTeX, or WeasyPrint)."
+      info "Install and configure a supported PDF engine, then retry. The source file is unchanged."
+      return 1
+    fi
+  fi
+
+  output_dir="$DOC_DIR/Converted"
+  mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create the Converted folder: $output_dir"; return 1; }
+  probe="$(mktemp "$output_dir/.cyberforge-convert.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable: $output_dir"; return 1; }
   rm -f -- "$probe"
-  filename="$src"; filename="${filename##*/}"; filename="${filename%.*}"
+
+  filename="${src##*/}"; filename="${filename%.*}"
   stem="$output_dir/$filename"
   if [[ "$target" == "markdown" ]]; then output="${stem}_converted.md"; else output="${stem}_converted.$target"; fi
   suffix=1
@@ -639,18 +683,36 @@ document_convert_file() {
     if [[ "$target" == "markdown" ]]; then output="${stem}_converted_$suffix.md"; else output="${stem}_converted_$suffix.$target"; fi
     ((suffix += 1))
   done
+
   if [[ "$ext" == "pdf" ]]; then
-    tmpdir="$PREFIX/tmp"; [[ -n "$TMPDIR" ]] && tmpdir="$TMPDIR"
+    tmpdir="${TMPDIR:-$PREFIX/tmp}"
     tmp="$(mktemp "$tmpdir/cyberforge-pdf-text.XXXXXX")" || { err "Could not create temporary extraction file."; return 1; }
     if ! pdftotext -layout "$src" "$tmp"; then rm -f "$tmp"; err "Could not extract selectable PDF text."; return 1; fi
-    if [[ "$target" == "txt" ]]; then cp "$tmp" "$output"; rc=$?; else pandoc -f markdown -t "$target" -o "$output" "$tmp"; rc=$?; fi
+    if [[ "$target" == "txt" ]]; then
+      cp -- "$tmp" "$output"; rc=$?
+    else
+      pandoc -f markdown -t "$target" -o "$output" "$tmp"; rc=$?
+    fi
     rm -f "$tmp"
   else
-    case "$ext" in docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;; html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;; esac
-    pandoc -f "$from" -t "$target" -o "$output" "$src"; rc=$?
+    case "$ext" in
+      docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;;
+      html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;;
+    esac
+    if [[ "$target" == "pdf" ]]; then
+      pandoc -f "$from" --pdf-engine="$pdf_engine" -o "$output" "$src"; rc=$?
+    else
+      pandoc -f "$from" -t "$target" -o "$output" "$src"; rc=$?
+    fi
   fi
+
   if (( rc == 0 )) && [ -s "$output" ]; then
-    ok "Converted file saved: $output"; info "Original document was not modified."; scan_media "$(dirname "$output")"; return 0
+    ok "Converted file saved: $output"
+    info "Original document was not modified."
+    scan_media "$output_dir"
+    return 0
   fi
-  rm -f -- "$output"; err "Conversion failed. Original document remains unchanged."; return 1
+  rm -f -- "$output"
+  err "Conversion failed. Original document remains unchanged."
+  return 1
 }
