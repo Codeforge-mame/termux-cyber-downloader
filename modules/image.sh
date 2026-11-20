@@ -102,7 +102,10 @@ image_choose_source() {
 
 image_process_menu() {
   local source="${1:-}" choice stem ext out w h fmt bg pdf_src pdf_name rc
-  [ -n "$source" ] || source="$(image_choose_source)" || return 1
+  if [ -z "$source" ]; then
+    image_choose_source || return 1
+    source="$IMAGE_SOURCE"
+  fi
   [ -f "$source" ] || { err "Image file not found."; return 1; }
   require_cmd ffmpeg ffmpeg || return 1
   stem="${source%.*}"; ext="${source##*.}"
