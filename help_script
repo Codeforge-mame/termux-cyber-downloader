@@ -59,17 +59,22 @@ DOCUMENT MANAGER
   Name collisions can be skipped, auto-renamed to keep both, or replaced after
   a separate confirmation. Move verifies the copied bytes before deleting source.
   Search and inspection do not modify original files.
-  Convert supported selected DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF files
-  with Pandoc; selectable-text PDF extraction needs Poppler; image conversion
-  needs ImageMagick. Image formats exclude the source format from target choices.
+  Convert supported DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF files with
+  Pandoc; selectable-text PDF extraction needs Poppler; image conversion needs
+  ImageMagick. Image formats exclude the source format from target choices.
+  CSV <-> XLSX conversion uses openpyxl. LibreOffice (libreoffice/soffice), when
+  installed, enables XLS/XLSX/ODS spreadsheet and PPT/PPTX/ODP/PDF conversions.
+  Without LibreOffice, PPTX slide text can be exported to TXT with python-pptx.
   Images can also be converted to PDF. Document-to-PDF needs Pandoc plus a PDF
   engine such as Tectonic, XeLaTeX, LuaLaTeX, or WeasyPrint. Scanned PDFs are
   not OCR'd.
   Read/Open is offered only when exactly one file is selected. It previews text
   in the terminal, extracts selectable PDF text, or opens media with Termux:API.
-  After conversion, choose Documents/Converted or a detected writable SD
-  card / USB drive. Removable copies go under CyberForge/Converted. A volume is
-  offered only when Termux can read and write it. Originals are never modified.
+  After document, spreadsheet, presentation, or image conversion, choose
+  Documents/Converted or a detected writable SD card / USB drive. This same
+  destination choice applies to converted images too. Removable copies go under
+  CyberForge/Converted. A volume is offered only when Termux can read and write
+  it. Originals are never modified.
   Copy/move destinations are limited to locations that pass a write-access test.
   Download a document or archive from a URL using the download option.
   OCR and document-content search are not included.
@@ -104,6 +109,8 @@ DEPENDENCIES
   pip install -U yt-dlp
   Optional image tools: pip install -U gallery-dl pillow
   Optional document conversion: pkg install pandoc poppler
+  Spreadsheet CSV/XLSX: python -m pip install -U openpyxl
+  PPTX slide text: python -m pip install -U python-pptx
   Optional image conversion: pkg install imagemagick
   Install apkeep separately if you use APK source features.
 
