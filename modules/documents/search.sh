@@ -534,7 +534,15 @@ document_conversion_menu() {
       5) target="markdown" ;;
       *) return 0 ;;
     esac
+    if [[ "$target" != "txt" ]] && ! command -v pandoc >/dev/null 2>&1; then
+      warn "Pandoc is needed for PDF conversion to this format. Install: pkg install pandoc"
+      return 1
+    fi
   else
+    if ! command -v pandoc >/dev/null 2>&1; then
+      warn "Pandoc is needed for this conversion. Install it with: pkg install pandoc"
+      return 1
+    fi
     printf '%s\n' " 1) DOCX" " 2) ODT" " 3) EPUB" " 4) HTML" " 5) Markdown" " 6) RTF" " 0) Cancel"
     ask_choice "Convert document to: " choice "1 2 3 4 5 6 0" || return 1
     case "$choice" in
