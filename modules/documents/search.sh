@@ -561,7 +561,7 @@ document_convert_file() {
     tmpdir="$PREFIX/tmp"; [[ -n "$TMPDIR" ]] && tmpdir="$TMPDIR"
     tmp="$(mktemp "$tmpdir/cyberforge-pdf-text.XXXXXX")" || { err "Could not create temporary extraction file."; return 1; }
     if ! pdftotext -layout "$src" "$tmp"; then rm -f "$tmp"; err "Could not extract selectable PDF text."; return 1; fi
-    if [[ "$target" == "txt" ]]; then cp "$tmp" "$output"; rc=$?; else pandoc -f plain -t "$target" -o "$output" "$tmp"; rc=$?; fi
+    if [[ "$target" == "txt" ]]; then cp "$tmp" "$output"; rc=$?; else pandoc -f markdown -t "$target" -o "$output" "$tmp"; rc=$?; fi
     rm -f "$tmp"
   else
     case "$ext" in docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;; html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;; esac
