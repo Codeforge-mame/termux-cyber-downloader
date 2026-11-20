@@ -700,7 +700,7 @@ with Image.open(source) as image:
 PY
     rc=$?
   fi
-  if (( rc == 0 )) && [ -s "$output" ]; then
+  if (( rc == 0 )) && document_validate_converted_output "$output" "$target"; then
     info "Original image was not modified."
     document_offer_conversion_destination "$output"
     [[ -f "$output" ]] && ok "Converted image saved: $output"
@@ -1181,7 +1181,7 @@ document_convert_file() {
     fi
   fi
 
-  if (( rc == 0 )) && [ -s "$output" ]; then
+  if (( rc == 0 )) && document_validate_converted_output "$output" "$target"; then
     info "Original document was not modified."
     document_offer_conversion_destination "$output"
     [[ -f "$output" ]] && ok "Converted file saved: $output"
