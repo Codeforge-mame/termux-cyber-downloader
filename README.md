@@ -2,20 +2,20 @@
 
 **Version:** 2.0.1 modular upgrade
 
-A modular Termux downloader with video, playlist, audio, Telegram, queue, APK, movie-search, and image tools. Supports Android Share → Termux and the DL launcher command.
+A modular Termux downloader with video, subtitles, video-only mode, playlists, documents, audio, Telegram, queue, APK downloads, movie search, image tools, and a 4G settings shortcut. Supports Android Share → Termux and the DL launcher command.
 
 ## Features
 
 - Modular Bash layout with shared configuration, colors, and helper functions.
-- Video resolution selection, turbo downloads, and timestamp trimming.
+- Video resolution selection, turbo downloads, timestamp trimming, English subtitles, and video-only downloads.
 - Dedicated playlist mode with each playlist saved in its own subfolder under Movies.
 - Playlist-aware filenames with playlist index numbers.
 - Telegram public links auto-route; choose 1, 2, 4, or 8 transfer threads.
 - Optional FFmpeg conversion after Telegram download creates a separate copy and retains the original.
 - Sequential queue with failed or cancelled URLs retained for retry.
-- Direct APK URL downloads plus APKPure/F-Droid options through apkeep.
+- Direct APK URL downloads plus APKPure/F-Droid options through apkeep. The local APK scanner and general Android control panel are not included.
 - Movie title search for legitimate streaming, rental, library, and official sources.
-- Image downloads from direct URLs and supported social/gallery pages through gallery-dl.
+- Direct document and archive downloads, automatically routed from Android Share or clipboard to Documents or Documents/APKs.\n- One-tap shortcut to Android Radio Information for manual LTE-only / 4G selection.\n- Image downloads from direct URLs and supported social/gallery pages through gallery-dl.
 - Video thumbnail downloads.
 - Image processing: square, widescreen, vertical and portrait crops; blurred fit; conversion/compression; metadata stripping; custom dimensions; Expo assets; Web/PWA assets; image-to-PDF.
 
@@ -56,7 +56,7 @@ source ~/.bashrc
 - Share a supported URL from another app to Termux.
 - Telegram `t.me` links auto-start the Telegram flow.
 
-### Video and playlists
+### Video, subtitles, and playlists\n\nThe Video Extras menu offers English manual/automatic subtitle downloads with embedding where supported, plus video-only downloads without an audio stream.\n\n### Documents and Android network settings\n\nPDF, Office, ZIP/RAR/7z, EPUB, TXT, CSV, APK, and XAPK links shared to the launcher are routed to Documents or Documents/APKs. The menu also has a dedicated shortcut to Android Radio Information. Selecting LTE only can lock a compatible device to 4G, but may affect voice calls; restore Auto or LTE/WCDMA when needed. The broader Android control panel and local APK scanner have been removed.\n\n### Video and playlists
 
 Choose Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p. Turbo mode uses eight parallel fragments when supported. Trim mode asks for start and end timestamps.
 
@@ -116,4 +116,4 @@ data/
 
 ## Dependencies
 
-Core: Bash, yt-dlp, Python, curl. FFmpeg is required for video/image processing. Termux:API is optional for notifications and media scanning. Optional: gallery-dl (social/gallery image downloads), Pillow (image-to-PDF), tdl (Telegram), apkeep (APK sources), nano (queue editing).
+Core: Bash, yt-dlp, Python, curl. FFmpeg is required for video/image processing. Termux:API is optional for notifications and media scanning. Optional: gallery-dl (social/gallery image downloads), Pillow (image-to-PDF), tdl (Telegram), apkeep (APK sources), nano (queue editing). Android Radio Information shortcut requires the Android activity manager, normally available in Termux.
