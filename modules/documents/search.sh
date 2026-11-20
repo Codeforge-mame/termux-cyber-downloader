@@ -229,11 +229,11 @@ document_manage_matches() {
         info "Check Android storage permission and run termux-setup-storage again."
         return 1
       fi
-      printf '\\nWRITABLE DESTINATION LOCATIONS\\n'
+      printf '\nWRITABLE DESTINATION LOCATIONS\n'
       for idx in "${!writable_paths[@]}"; do
-        printf ' %s) %s\\n    %s\\n' "$((idx + 1))" "${writable_labels[$idx]}" "${writable_paths[$idx]}"
+        printf ' %s) %s\n    %s\n' "$((idx + 1))" "${writable_labels[$idx]}" "${writable_paths[$idx]}"
       done
-      printf ' 0) Cancel\\n'
+      printf ' 0) Cancel\n'
       allowed="0"
       for idx in "${!writable_paths[@]}"; do allowed+=" $((idx + 1))"; done
       ask_choice "Choose destination location: " choice "$allowed" || return 1
