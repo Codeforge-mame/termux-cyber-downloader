@@ -5,12 +5,13 @@ document_manager_menu() {
     banner "DOCUMENT MANAGER"
     printf '%s\n' \
       " 1) Find local files" \
-      " 2) Download a document / file" \
+      " 2) Search by file type" \
+      " 3) Download a document / file" \
       " 0) Back to main menu"
     ask "documents> " choice
     case "$choice" in
       1) document_local_search ;;
-      2) document_download "" ;;
+      2) document_local_type_search ;;\n      3) document_download "" ;;
       0|q|Q) break ;;
       *) warn "Unknown selection." ;;
     esac
