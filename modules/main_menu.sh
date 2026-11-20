@@ -15,7 +15,7 @@ main_menu() {
       7) apk_menu ;;
       8) movie_search ;;
       9) playlist_download "$url" ;;
-      10) image_menu "$url" ;;
+      10) image_menu "$url" ;;\n      11) video_extras_menu "$url" ;;\n      12) document_download "$url" ;;\n      13) open_4g_network_settings ;;
       h|H) bash "$CD_ROOT/help_script" ;;
       0|q|Q) break ;;
       *) warn "Unknown selection." ;;
