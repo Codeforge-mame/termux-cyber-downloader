@@ -38,6 +38,16 @@ update_all_tools() {
   ok "Installed Termux and Python tools have been updated."
 }
 
+check_tool_updates() {
+  banner "CHECK FOR TOOL UPDATES"
+  info "Refreshing Termux package information..."
+  pkg update || return $?
+  printf "\\n--- Termux packages with updates ---\\n"
+  apt list --upgradable 2>/dev/null || true
+  printf "\\n--- Python packages with updates ---\\n"
+  python -m pip list --outdated || true
+}
+
 tools_update_menu() {
   local choice confirm
   while true; do
@@ -64,6 +74,7 @@ tools_update_menu() {
         [[ "$confirm" =~ ^[Yy]$ ]] && update_all_tools
         ;;
       5) tool_versions ;;
+      6) check_tool_updates ;;
       0|"") return 0 ;;
       *) warn "Unknown update option." ;;
     esac
