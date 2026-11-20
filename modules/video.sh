@@ -33,9 +33,7 @@ playlist_download() {
 
   ask "Folder name for this playlist (inside Movies): " folder_name
   # Keep the folder name safe: no path separators, traversal, or shell metacharacters.
-  folder_name="$(printf '%s' "$folder_name" | tr -cd '[:alnum:] _.-' | cut -c1-80)"
-  folder_name="${folder_name#" ${folder_name%%[![:space:]]*}"}"
-  folder_name="${folder_name%" ${folder_name##*[![:space:]]}"}"
+  folder_name="$(printf '%s' "$folder_name" | tr -cd '[:alnum:] _.-' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | cut -c1-80)"
   case "$folder_name" in
     ""|"."|"..") err "Please enter a valid folder name."; return 1 ;;
   esac
