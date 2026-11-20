@@ -458,3 +458,120 @@ document_local_type_search() {
   done
   document_search_show_matches "$tmp" "FILE TYPE RESULTS"
 }
+
+
+# Phase 3: convert supported documents without OCR. The source is never replaced.
+document_conversion_menu() {
+  local query choice idx src ext target from output stem suffix tmp rc attempt valid=0
+  local -a roots=() candidates=()
+  banner "DOCUMENT CONVERSION"
+  if ! command -v pandoc >/dev/null 2>&1; then
+    warn "Pandoc is needed for DOCX, ODT, EPUB, HTML, Markdown, RTF and TXT conversions."
+    info "Install it with: pkg install pandoc"
+    info "For selectable-text PDF conversion also install: pkg install poppler"
+    return 1
+  fi
+  ask_nonempty "Search filename to convert: " query || return 1
+  document_search_choose_roots || return 0
+  roots=("${DOC_SELECTED_ROOTS[@]}")
+  for idx in "${!roots[@]}"; do
+    while IFS= read -r -d '' src; do candidates+=("$src"); done < <(
+      find "${roots[$idx]}" -type f \\( -iname '*.docx' -o -iname '*.odt' -o -iname '*.epub' -o -iname '*.html' -o -iname '*.htm' -o -iname '*.md' -o -iname '*.txt' -o -iname '*.rtf' -o -iname '*.pdf' \\) -iname "*$query*" -print0 2>/dev/null
+    )
+  done
+  if (( ${#candidates[@]} == 0 )); then
+    warn "No supported documents matched that filename."
+    return 0
+  fi
+  banner "SELECT DOCUMENT"
+  for idx in "${!candidates[@]}"; do
+    (( idx >= 100 )) && break
+    printf '%s) %s\n   %s\n' "$((idx + 1))" "${candidates[$idx]##*/}" "${candidates[$idx]}"
+  done
+  (( ${#candidates[@]} > 100 )) && warn "Only the first 100 results are shown."
+  for ((attempt=1; attempt<=3; attempt++)); do
+    ask "Select document number (0 = cancel): " choice
+    [[ "$choice" == "0" ]] && return 0
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= 100 && choice <= ${#candidates[@]} )); then
+      valid=1; break
+    fi
+    err "Select a listed number or 0 to cancel (attempt $attempt/3)."
+  done
+  (( valid == 1 )) || { warn "Maximum attempts reached."; return 1; }
+  src="${candidates[$((choice - 1))]}"
+  [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable."; return 1; }
+  ext="${src##*.}"; ext="${ext,,}"
+  if [[ "$ext" == "pdf" ]]; then
+    if ! command -v pdftotext >/dev/null 2>&1; then
+      warn "PDF text extraction requires Poppler: pkg install poppler"
+      info "Scanned PDFs are not supported because OCR is intentionally excluded."
+      return 1
+    fi
+    printf '%s\n' " 1) TXT" " 2) DOCX" " 3) ODT" " 4) HTML" " 5) Markdown" " 0) Cancel"
+    ask_choice "Convert PDF to: " choice "1 2 3 4 5 0" || return 1
+    case "$choice" in
+      1) target="txt" ;;
+      2) target="docx" ;;
+      3) target="odt" ;;
+      4) target="html" ;;
+      5) target="markdown" ;;
+      *) return 0 ;;
+    esac
+  else
+    printf '%s\n' " 1) DOCX" " 2) ODT" " 3) EPUB" " 4) HTML" " 5) Markdown" " 6) RTF" " 0) Cancel"
+    ask_choice "Convert document to: " choice "1 2 3 4 5 6 0" || return 1
+    case "$choice" in
+      1) target="docx" ;;
+      2) target="odt" ;;
+      3) target="epub" ;;
+      4) target="html" ;;
+      5) target="markdown" ;;
+      6) target="rtf" ;;
+      *) return 0 ;;
+    esac
+    [[ "$ext" == "md" && "$target" == "markdown" || "$ext" == "$target" ]] && {
+      warn "Source and target formats are the same."; return 1;
+    }
+  fi
+  stem="${src%.*}"
+  case "$target" in markdown) output="${stem}_converted.md" ;; *) output="${stem}_converted.$target" ;; esac
+  suffix=1
+  while [[ -e "$output" ]]; do
+    case "$target" in markdown) output="${stem}_converted_${suffix}.md" ;; *) output="${stem}_converted_${suffix}.$target" ;; esac
+    ((suffix += 1))
+  done
+  if [[ "$ext" == "pdf" ]]; then
+    tmp="$(mktemp "${TMPDIR:-$PREFIX/tmp}/cyberforge-pdf-text.XXXXXX")" || {
+      err "Could not create temporary extraction file."; return 1;
+    }
+    if ! pdftotext -layout "$src" "$tmp"; then
+      rm -f "$tmp"; err "Could not extract selectable text from this PDF."; return 1
+    fi
+    if [[ "$target" == "txt" ]]; then
+      cp "$tmp" "$output"; rc=$?
+    else
+      pandoc -f plain -t "$target" -o "$output" "$tmp"; rc=$?
+    fi
+    rm -f "$tmp"
+  else
+    case "$ext" in
+      docx) from="docx" ;;
+      odt) from="odt" ;;
+      epub) from="epub" ;;
+      html|htm) from="html" ;;
+      md|txt) from="markdown" ;;
+      rtf) from="rtf" ;;
+    esac
+    pandoc -f "$from" -t "$target" -o "$output" "$src"
+    rc=$?
+  fi
+  if (( rc == 0 )) && [ -s "$output" ]; then
+    ok "Converted file saved: $output"
+    info "Original document was not modified."
+    scan_media "$(dirname "$output")"
+  else
+    rm -f -- "$output"
+    err "Conversion failed. Original document remains unchanged."
+    return 1
+  fi
+}
