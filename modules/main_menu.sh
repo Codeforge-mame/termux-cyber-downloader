@@ -20,7 +20,7 @@ main_menu() {
       0|q|Q) break ;;
       *) warn "Unknown selection." ;;
     esac
-    printf "\\n"
+    printf "\n"
     ask "Return to main menu? [Y/n]: " again
     [[ "$again" =~ ^[Nn]$ ]] && break
     url=""
