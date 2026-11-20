@@ -11,7 +11,7 @@ telegram_download() {
 
   banner "TELEGRAM DOWNLOAD THREADS"
   printf " 1) 1 thread (most conservative)\n 2) 2 threads\n 3) 4 threads\n 4) 8 threads (fastest option)\n 0) Cancel\n"
-  ask_choice_default "Choose thread count [default 8]: " threads_choice "1 2 3 4" "4" || return 1
+  ask_choice_default "Choose thread count [default 8]: " threads_choice "1 2 3 4 0" "4" || return 1
   case "$threads_choice" in
     0) info "Telegram download cancelled."; return 1 ;;
     1) threads=1 ;;
