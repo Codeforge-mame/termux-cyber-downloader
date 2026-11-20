@@ -1,43 +1,49 @@
-<!-- Replace the banner path after the repository artwork is added. -->
+<p align="center">
+  <img src="assets/cyberforge-banner.svg" alt="CyberForge Android Download and Media Toolkit" width="100%">
+</p>
 
-# Termux Cyber Downloader
-
-A modular, menu-driven downloader and media toolkit for **Termux on Android**. Download videos, audio, Telegram media, playlists, documents, APKs, and images, then process media and prepare image assets directly from your phone.
+<h1 align="center">CyberForge</h1>
+<p align="center"><strong>Android Download & Media Toolkit for Termux</strong></p>
 
 <p align="center">
-  <a href="https://github.com/Codeforge-mame/termux-cyber-downloader">
-    <img src="https://img.shields.io/badge/Platform-Termux-2E8B57?style=for-the-badge&logo=android&logoColor=white" alt="Termux">
-  </a>
+  <img src="https://img.shields.io/badge/Platform-Termux-2E8B57?style=for-the-badge&logo=android&logoColor=white" alt="Termux">
   <img src="https://img.shields.io/badge/Shell-Bash-4EAA25?style=for-the-badge&logo=gnubash&logoColor=white" alt="Bash">
   <img src="https://img.shields.io/badge/Video-yt--dlp-111111?style=for-the-badge" alt="yt-dlp">
   <img src="https://img.shields.io/badge/Media-FFmpeg-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg">
   <img src="https://img.shields.io/badge/Language-Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Telegram-tdl-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="tdl">
 </p>
+
+CyberForge is a menu-driven downloader and media toolkit built for **Termux on Android**. It brings video, audio, subtitles, Telegram media, playlists, documents, APK downloads, image processing, and tool updates into one terminal interface.
+
+> The cyber-security-inspired artwork is a visual theme. CyberForge is a downloader and media toolkit, not a security scanner or penetration-testing tool.
 
 ## Features
 
-- **Video downloads:** choose Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p.
-- **Turbo downloads:** use up to eight yt-dlp fragments when the source supports it.
-- **Video extras:** download English subtitles or a video-only stream.
-- **Trim videos:** download a selected time range.
+- **Video downloads:** Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p.
+- **Turbo downloads:** up to eight yt-dlp fragments where the source supports parallel fragments.
+- **Video + subtitles:** download the video and available English subtitles together, with subtitle embedding when supported.
+- **Video-only downloads:** save a video stream without an audio track.
+- **Video trimming:** download a selected time range.
 - **Audio:** extract audio and save it as MP3.
-- **Playlists:** save a playlist into a named folder with numbered filenames.
+- **Playlists:** save playlist items into a named folder with numbered filenames.
 - **Telegram:** download public Telegram media with selectable 1, 2, 4, or 8 transfer threads using the standard `tdl` release.
-- **Documents and archives:** download PDF, Office, ZIP, RAR, 7z, EPUB, TXT, CSV, APK, and XAPK files.
-- **Sequential queue:** process queued links one by one and keep failed or cancelled links for retry.
+- **Documents and archives:** PDF, Office, ZIP, RAR, 7z, EPUB, TXT, CSV, APK, and XAPK.
+- **Sequential queue:** process links one by one and keep failed or cancelled links for retry.
 - **APK downloads:** direct APK URLs and optional APKPure/F-Droid sources through `apkeep`.
-- **Image and media tools:** download images and supported gallery posts, save video thumbnails, crop/resize/convert images, remove metadata, create Expo or Web/PWA assets, and combine images into a PDF.
+- **Image and media tools:** direct image and supported gallery downloads, video thumbnails, crops, resizing, conversion, compression, metadata stripping, Expo/Web asset packs, and image-to-PDF.
 - **Movie and series search:** find legitimate availability through Google, JustWatch, or IMDb.
-- **Android shortcut:** open Android Radio Information for manual LTE/4G network selection.
-- **Android sharing:** share supported links from another app to Termux.
+- **Android network shortcut:** open Android Radio Information for manual LTE/4G selection.
+- **Tool update center:** update Termux packages, yt-dlp, optional Python media tools, and inspect installed versions without leaving the menu.
+- **Android sharing:** share supported links from other apps to Termux.
 
 ## Requirements
 
 Use the **Termux app from F-Droid or the official Termux GitHub releases**. Avoid mixing Termux with the outdated Play Store build.
 
-### Required packages
+### 1. Install required packages
 
-Run these commands inside Termux:
+Open Termux and run:
 
 ```bash
 pkg update && pkg upgrade -y
@@ -46,11 +52,11 @@ python -m pip install -U yt-dlp
 termux-setup-storage
 ```
 
-When Android asks for storage access, allow it. This lets the downloader save files in your shared Movies, Music, Pictures, and Documents folders.
+When Android asks for storage access, allow it. This lets CyberForge save downloads in shared Movies, Music, Pictures, and Documents folders.
 
-### Optional packages
+### 2. Optional packages
 
-Install these only if you want their related features:
+Install these only when you need their features:
 
 ```bash
 # Social/gallery image downloads
@@ -66,57 +72,42 @@ pkg install termux-api -y
 pkg install nano -y
 ```
 
-The APKPure and F-Droid menu options require `apkeep`, which is an optional external tool and must be installed separately. Direct APK URL downloads do not require it.
+The APKPure and F-Droid menu options need `apkeep`, installed separately. Direct APK URL downloads do not require it.
 
 ## Installation
 
-Clone the latest stable version from the `main` branch:
+Clone the latest version from the `main` branch:
 
 ```bash
 git clone -b main https://github.com/Codeforge-mame/termux-cyber-downloader.git ~/termux-cyber-downloader
 cd ~/termux-cyber-downloader
-
-mkdir -p ~/bin
-cp termux-url-opener ~/bin/termux-url-opener
-cp help_script ~/bin/cyber-help
-chmod +x ~/bin/termux-url-opener ~/bin/cyber-help
-```
-
-Add convenient commands to your Termux shell:
-
-```bash
-echo 'alias DL="bash $HOME/bin/termux-url-opener"' >> ~/.bashrc
-echo 'alias dl="bash $HOME/bin/termux-url-opener"' >> ~/.bashrc
-echo 'alias cyber-help="bash $HOME/bin/cyber-help"' >> ~/.bashrc
+bash install.sh
 source ~/.bashrc
 ```
 
+The installer keeps the complete project in `~/termux-cyber-downloader` and installs launchers in `~/bin`. It also adds the launch commands to your shell path.
+
+If you already cloned the repository, run the last three commands from its folder.
+
 ## How to use
 
-### Open the downloader
+### Open CyberForge
 
 ```bash
 DL
 ```
 
-You can also run it without setting up aliases:
+Other launch options:
 
 ```bash
+cyberforge
 bash ~/bin/termux-url-opener
 ```
 
-The interactive menu guides you through each operation. Enter the menu number, provide the requested URL or options, and choose where applicable.
-
-### Open the help guide
+### Open help
 
 ```bash
 cyber-help
-```
-
-Or:
-
-```bash
-bash ~/bin/cyber-help
 ```
 
 ### Share a link from Android
@@ -124,51 +115,88 @@ bash ~/bin/cyber-help
 1. Open the app containing the link.
 2. Tap **Share**.
 3. Choose **Termux**.
-4. The launcher detects supported Telegram and document links automatically. Other links open the main menu with the shared URL.
+4. CyberForge automatically routes public Telegram links and supported document links. Other links open the main menu with the shared URL.
 
-### Where files are saved
+## Main menu
 
-Downloads are organized in your Termux shared storage, usually under:
+| Option | Tool |
+|---:|---|
+| 1 | Video download |
+| 2 | Turbo video |
+| 3 | Trim video clip |
+| 4 | Audio MP3 |
+| 5 | Telegram download |
+| 6 | Sequential queue |
+| 7 | APK downloader |
+| 8 | Movie / series search |
+| 9 | Playlist download |
+| 10 | Image & media tools |
+| 11 | Video extras: video + subtitles / video-only |
+| 12 | Document / file download |
+| 13 | Android 4G network settings |
+| 14 | Tool update center |
 
-- Videos: `~/storage/movies`
-- Telegram: `~/storage/movies/Telegram`
+## Video + subtitle downloads
+
+Choose **11 → 1** in the main menu, paste a supported video URL, then choose a resolution. CyberForge requests the video stream and available English subtitle tracks in the same operation. It attempts to convert and embed subtitles into the video using FFmpeg.
+
+Some sources do not provide English subtitles, and some subtitle formats cannot be embedded into every container. In those cases, the video may download without an embedded English track or the source may report that subtitles are unavailable.
+
+Files are saved under `Movies/Subtitles`.
+
+## Updating tools inside CyberForge
+
+Choose **14) Tool update center** from the main menu.
+
+- **Update all Termux packages:** updates installed Termux packages, including FFmpeg and tdl.
+- **Update yt-dlp:** upgrades yt-dlp with Python pip.
+- **Update optional Python media tools:** upgrades gallery-dl and Pillow only if installed.
+- **Update all installed CyberForge tools:** updates Termux packages and installed Python media tools.
+- **Show installed tool versions:** displays versions for the available command-line tools.
+
+Updates require an internet connection. Review package-manager output if an update fails. The optional `apkeep` tool is not managed by the Python updater.
+
+## Where downloads are saved
+
+- Videos and Telegram: `~/storage/movies`
+- Telegram subfolder: `~/storage/movies/Telegram`
+- Video + subtitles: `~/storage/movies/Subtitles`
 - Music: `~/storage/music`
 - Images: `~/storage/pictures`
 - Documents: `~/storage/shared/Documents`
 - APKs: `~/storage/shared/Documents/APKs`
 
-The exact folders are configured by the toolkit and may be adjusted in its configuration file.
+## Update CyberForge itself
 
-## Update
-
-If you already installed the repository, update it with:
+The in-app update center updates installed tools, not the CyberForge source code. To update the project:
 
 ```bash
 cd ~/termux-cyber-downloader
 git switch main
 git pull --ff-only origin main
-
-cp termux-url-opener ~/bin/termux-url-opener
-cp help_script ~/bin/cyber-help
-chmod +x ~/bin/termux-url-opener ~/bin/cyber-help
+bash install.sh
+source ~/.bashrc
 ```
 
-Your download history and queue are stored in the repository's `data/` directory. Back up any local changes to those files before switching branches or replacing local files.
+Your download history and queue are stored in `data/`. Back up local changes to those files before switching branches or resolving Git conflicts.
 
-## Important behavior and limitations
+## Behavior and limitations
 
-- **Telegram resume:** the standard `tdl` release is used. The script passes `--continue --skip-same`, but an interrupted temporary download may be removed by `tdl`; retrying may start that file again. Byte-level Telegram resume is not included.
+- **Telegram resume:** CyberForge uses the standard `tdl` release. It passes `--continue --skip-same`, but an interrupted temporary file may be removed by tdl; retrying may restart that file. Byte-level Telegram resume is not included.
 - **Document resume:** continuing a partial download depends on the remote server supporting HTTP Range requests.
-- **Download speed:** turbo mode and additional Telegram threads do not guarantee faster downloads. Actual speed depends on the source, network, and server limits.
-- **Image downloads:** social/gallery downloads depend on the site's support in the installed `gallery-dl` version.
+- **Download speed:** turbo mode and extra Telegram threads do not guarantee faster downloads. Actual speed depends on the source, network, and server limits.
+- **Image downloads:** social/gallery support depends on the installed gallery-dl version and the website.
 - **Network shortcut:** LTE-only mode may affect voice calls. Restore Auto or LTE/WCDMA if needed.
-- **APK safety:** verify the publisher and APK signature before installing packages, especially from third-party sources.
+- **APK safety:** verify the publisher and APK signature before installing, especially for third-party sources.
 - **Copyright and authorization:** only download content you own, have permission to access, or are otherwise legally allowed to download.
 
 ## Project structure
 
 ```text
 termux-cyber-downloader/
+├── assets/
+│   └── cyberforge-banner.svg
+├── install.sh
 ├── termux-url-opener
 ├── help_script
 ├── lib/
@@ -183,15 +211,16 @@ termux-cyber-downloader/
 │   ├── telegram.sh
 │   ├── queue.sh
 │   ├── apk.sh
-│   └── movie.sh
+│   ├── movie.sh
+│   └── tools.sh
 ├── legacy/       # inactive backup
-└── data/         # queue and download history
+└── data/         # download queue and history
 ```
 
 ## Contributing
 
-Issues, bug reports, and practical improvements are welcome. When reporting a problem, include the Termux version, Android version, the menu option used, and the relevant error output. Remove private URLs or personal information before posting logs.
+Bug reports and practical improvements are welcome. When reporting a problem, include your Termux version, Android version, menu option, and relevant error output. Remove private URLs and personal information from logs before sharing.
 
 ---
 
-**Maintained by [Codeforge-mame](https://github.com/Codeforge-mame).**
+**CyberForge** is maintained by [Codeforge-mame](https://github.com/Codeforge-mame).
