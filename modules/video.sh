@@ -58,7 +58,7 @@ trim_download() {
   local rc=$?; [ "$rc" -eq 0 ] && record_history trim "$url" && scan_media "$VIDEO_DIR"; return "$rc"
 }
 audio_download() {
-  local url="$1"; [ -n "$url" ] || ask "Audio URL: " url
+  local url="$1"; [ -n "$url" ] || ask_url "Audio URL: " url || return 1
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   run_ytdlp -4 -N 2 --download-archive "$AUDIO_ARCHIVE" -x --audio-format mp3 --embed-thumbnail -P "$MUSIC_DIR" -o "$OUT_TMPL" "$url"
   local rc=$?; [ "$rc" -eq 0 ] && record_history audio "$url" && scan_media "$MUSIC_DIR"; return "$rc"
