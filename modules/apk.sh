@@ -15,8 +15,7 @@ apk_menu() {
     2|3)
       require_cmd apkeep apkeep || return 1
       local query pkg src confirm rc html found
-      ask "App name OR package ID (e.g. VLC, WhatsApp, or org.videolan.vlc): " query
-      [ -n "$query" ] || { warn "No app name or package ID entered."; return 1; }
+      ask_nonempty "App name OR package ID (e.g. VLC, WhatsApp, or org.videolan.vlc): " query || return 1
 
       case "${query,,}" in
         x|twitter) pkg=com.twitter.android ;;
