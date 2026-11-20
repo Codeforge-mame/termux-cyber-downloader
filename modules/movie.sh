@@ -1,8 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 movie_search() {
   local q encoded google justwatch imdb choice video_url threads_choice threads rc
-  ask "Movie or series title: " q
-  [ -n "$q" ] || return 0
+  ask_nonempty "Movie or series title: " q || return 1
   encoded="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote_plus(sys.argv[1]))' "$q" 2>/dev/null)"
   [ -n "$encoded" ] || { err "Could not encode the title. Check that Python 3 is installed."; return 1; }
 
