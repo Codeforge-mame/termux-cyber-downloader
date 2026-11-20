@@ -28,7 +28,7 @@ CyberForge is a menu-driven downloader and media toolkit built for **Termux on A
 - **Audio:** extract audio and save it as MP3.
 - **Playlists:** save playlist items into a named folder with numbered filenames.
 - **Telegram:** download public Telegram media with selectable 1, 2, 4, or 8 transfer threads using the standard `tdl` release.
-- **Document Manager:** search local filenames and file types, select multiple results, delete, copy, move, or convert supported files directly from the selected-results actions, inspect file details, and download documents or archives. Storage roots are checked for real read/write access.
+- **Document Manager:** search local filenames and file types, select multiple results, read/open, delete, copy, move, or convert supported documents and images directly from selected-results actions, inspect file details, and download documents or archives. Storage roots are checked for real read/write access.
 - **Sequential queue:** process links one by one and keep failed or cancelled links for retry.
 - **APK downloads:** direct APK URLs and optional APKPure/F-Droid sources through `apkeep`.
 - **Image and media tools:** direct image and supported gallery downloads, video thumbnails, crops, resizing, conversion, compression, metadata stripping, Expo/Web asset packs, and image-to-PDF.
@@ -70,6 +70,9 @@ python -m pip install -U pillow
 pkg install pandoc
 # Selectable-text PDF extraction (optional, no OCR)
 pkg install poppler
+
+# Image format conversion in Document Manager
+pkg install imagemagick
 
 # Android notifications and media scanning
 pkg install termux-api -y
@@ -152,8 +155,8 @@ Choose **12) Document Manager** from the main menu. Search by filename or file t
 - **Delete:** delete one or multiple selected files only after typing `DELETE` at the confirmation prompt.
 - **Copy / move:** choose an accessible destination location and optional subfolder. Existing-name collisions can be skipped, automatically renamed to keep both files, or replaced after a separate confirmation.
 - **Move safety:** CyberForge copies and byte-verifies each file before removing its original. If verification fails, the source is retained.
-- **Inspect files:** view the selected file's path, size, extension, readability, and MIME type when the optional `file` command is available.
-- **Convert selected files:** the Convert action appears when the selection contains supported DOCX, ODT, EPUB, HTML, Markdown, TXT, RTF, or PDF files. Each supported file is converted through the selected-results actions. Pandoc is required for document conversions; selectable-text PDF extraction also requires Poppler. Scanned PDFs are not supported because OCR is not included.
+- **Read / open:** preview the first 200 lines of text files in the terminal, extract selectable PDF text with Poppler, convert supported office documents to plain text with Pandoc, or open media and other binary files with Android through Termux:API.
+- **Convert selected files:** the Convert action appears when the selection contains supported DOCX, ODT, EPUB, HTML, Markdown, TXT, RTF, PDF, or common raster image files (JPG, PNG, WebP, BMP, GIF, TIFF). Pandoc is required for document conversions; selectable-text PDF extraction also requires Poppler; image conversion requires ImageMagick. Scanned PDFs are not supported because OCR is not included.
 - **Download a file:** the URL downloader remains available inside this menu.
 
 Storage discovery probes actual directory listing and write access. Locations are labelled `read/write` or `read only`; only writable locations are offered as copy/move destinations. Run `termux-setup-storage` and grant Termux file access if a mounted volume is missing. Android scoped-storage restrictions can still prevent access to some SD/USB folders, even when Android shows them in its file manager.
