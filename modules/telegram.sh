@@ -20,14 +20,16 @@ telegram_download() {
 
   info "Starting Telegram download with $threads thread(s)."
   info "Destination: $telegram_dir"
-  # tdl --continue resumes supported interrupted transfers when the same link is retried.
-  tdl dl -u "$url" -d "$telegram_dir" -t "$threads" --continue
+  # --continue restores tdl's saved message-list progress; --skip-same avoids
+  # downloading files that are already complete. Byte-level partial resume
+  # requires a tdl build containing upstream PR #1388.
+  tdl dl -u "$url" -d "$telegram_dir" -t "$threads" --continue --skip-same
   rc=$?
 
   if [ "$rc" -ne 0 ]; then
     err "Telegram download did not complete (exit code $rc)."
-    info "Retry the same Telegram link to resume supported partial downloads. If it stalls, try fewer threads."
-    info "Check that the channel is public and your tdl session can access the post."
+    info "Retry the same link. Completed files should be skipped; partial-file byte resume depends on your installed tdl build."
+    info "If tdl removes the incomplete temporary file, this version cannot recover those partial bytes."
     return "$rc"
   fi
 
