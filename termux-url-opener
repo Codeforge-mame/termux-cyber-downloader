@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -o pipefail
 ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
-for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$ROOT/modules/video.sh" "$ROOT/modules/telegram.sh" "$ROOT/modules/queue.sh" "$ROOT/modules/apk.sh" "$ROOT/modules/movie.sh" "$ROOT/modules/main_menu.sh"; do
+for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$ROOT/modules/video.sh" "$ROOT/modules/image.sh" "$ROOT/modules/telegram.sh" "$ROOT/modules/queue.sh" "$ROOT/modules/apk.sh" "$ROOT/modules/movie.sh" "$ROOT/modules/main_menu.sh"; do
   [ -r "$file" ] || { printf '[ERR] Missing toolkit file: %s\n' "$file" >&2; exit 1; }
   source "$file"
 done
