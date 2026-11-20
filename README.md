@@ -66,6 +66,9 @@ python -m pip install -U gallery-dl
 # Image-to-PDF support
 python -m pip install -U pillow
 
+# CSV / XLSX conversion
+python -m pip install -U openpyxl
+
 # Document conversion (optional)
 pkg install pandoc
 # Selectable-text PDF extraction (optional, no OCR)
