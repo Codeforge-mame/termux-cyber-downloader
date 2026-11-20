@@ -3,6 +3,9 @@
 
 DOC_SEARCH_LABELS=()
 DOC_SEARCH_PATHS=()
+DOC_SEARCH_WRITABLE=()
+DOC_SEARCH_BLOCKED_LABELS=()
+DOC_SEARCH_BLOCKED_PATHS=()
 
 document_search_add_root() {
   local label="$1" path="$2" resolved existing probe writable=0
@@ -26,6 +29,8 @@ document_search_discover_roots() {
   DOC_SEARCH_LABELS=()
   DOC_SEARCH_PATHS=()
   DOC_SEARCH_WRITABLE=()
+  DOC_SEARCH_BLOCKED_LABELS=()
+  DOC_SEARCH_BLOCKED_PATHS=()
   document_search_add_root "Internal shared storage" "$HOME/storage/shared"
   document_search_add_root "Internal shared storage" "/storage/emulated/0"
   document_search_add_root "Internal shared storage" "/sdcard"
@@ -40,7 +45,7 @@ document_search_discover_roots() {
   done
 
   # Android SD cards commonly mount as /storage/XXXX-XXXX; USB/OTG paths vary.
-  for path in /storage/* /mnt/media_rw/* /mnt/user/*; do
+  for path in /storage/* /mnt/media_rw/*; do
     [ -d "$path" ] || continue
     name="${path##*/}"
     case "$name" in emulated|self|media_rw|user|pass_through) continue ;; esac
@@ -322,8 +327,15 @@ document_local_search() {
   local -a roots=() labels=() matches=()
   document_search_discover_roots
 
+  if (( ${#DOC_SEARCH_BLOCKED_PATHS[@]} > 0 )); then
+    warn "Some mounted storage locations were detected but Termux cannot read them:"
+    for index in "${!DOC_SEARCH_BLOCKED_PATHS[@]}"; do
+      printf ' - %s: %s\n' "${DOC_SEARCH_BLOCKED_LABELS[$index]}" "${DOC_SEARCH_BLOCKED_PATHS[$index]}"
+    done
+    info "Check Android app storage permissions. Android scoped storage may still block removable volumes."
+  fi
   if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
-    err "No accessible shared or removable storage was detected."
+    err "No readable shared or removable storage was detected."
     info "Run termux-setup-storage and grant Android storage permission, then try again."
     return 1
   fi
@@ -385,8 +397,15 @@ document_search_choose_roots() {
   local choice index allowed="0 a A"
   DOC_SELECTED_ROOTS=()
   document_search_discover_roots
+  if (( ${#DOC_SEARCH_BLOCKED_PATHS[@]} > 0 )); then
+    warn "Detected storage that Termux cannot read:"
+    for index in "${!DOC_SEARCH_BLOCKED_PATHS[@]}"; do
+      printf ' - %s: %s\n' "${DOC_SEARCH_BLOCKED_LABELS[$index]}" "${DOC_SEARCH_BLOCKED_PATHS[$index]}"
+    done
+    info "Check Android storage permission; some removable volumes may be restricted by scoped storage."
+  fi
   if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
-    err "No accessible shared or removable storage was detected."
+    err "No readable shared or removable storage was detected."
     info "Run termux-setup-storage and grant Android storage permission, then try again."
     return 1
   fi
