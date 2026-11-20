@@ -108,6 +108,6 @@ video_extras_menu() {
       0|"") return 0 ;;
       *) warn "Unknown video option." ;;
     esac
-    printf "\\n"
+    printf "\n"
   done
 }
