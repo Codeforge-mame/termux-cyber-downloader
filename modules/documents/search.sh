@@ -118,7 +118,7 @@ document_selected_file_info() {
   printf '1) Open with Android (if termux-open is available)\n'
   printf '0) Back\n'
   local action
-  ask "Select action: " action
+  ask_choice "Select action: " action "1 0" || return 1
   case "$action" in
     1)
       if command -v termux-open >/dev/null 2>&1; then
@@ -181,7 +181,7 @@ document_manage_matches() {
   for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
   printf '\n'
   printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
-  ask "Choose operation: " action
+  ask_choice "Choose operation: " action "1 2 3 0" || return 1
 
   case "$action" in
     0|"") return 0 ;;
@@ -189,8 +189,7 @@ document_manage_matches() {
       printf '\n'
       warn "Deletion is permanent. These files will be removed:"
       for src in "${selected[@]}"; do printf ' - %s\n' "$src"; done
-      ask "Type DELETE to confirm: " choice
-      [[ "$choice" == "DELETE" ]] || { info "Deletion cancelled."; return 0; }
+      ask_choice "Type DELETE to confirm: " choice "DELETE" || { info "Deletion cancelled."; return 0; }
       deleted=0; failed=0
       for src in "${selected[@]}"; do
         if [ -f "$src" ] && rm -- "$src" 2>/dev/null; then
@@ -247,7 +246,7 @@ document_manage_matches() {
         if [ -e "$candidate" ]; then
           printf '\nDestination already contains: %s\n' "$base"
           printf '%s\n' " s) Skip" " r) Keep both (automatic new filename)" " o) Replace existing file"
-          ask "Choose for this file [s/r/o]: " choice
+          ask_choice "Choose for this file [s/r/o]: " choice "s S r R o O" || { ((skipped += 1)); continue; }
           case "$choice" in
             r|R)
               stem="$base"; ext=""
@@ -257,8 +256,7 @@ document_manage_matches() {
               candidate="$dest/$stem (copy $suffix)$ext"
               ;;
             o|O)
-              ask "Type REPLACE to overwrite $base: " choice
-              [[ "$choice" == "REPLACE" ]] || { ((skipped += 1)); info "Skipped: $base"; continue; }
+              ask_choice "Type REPLACE to overwrite $base: " choice "REPLACE" || { ((skipped += 1)); info "Skipped: $base"; continue; }
               ;;
             *) ((skipped += 1)); info "Skipped: $base"; continue ;;
           esac
@@ -413,7 +411,7 @@ document_local_type_search() {
     " 9) APK / Android packages" \
     "10) Enter extension manually" \
     " 0) Back"
-  ask "Choose file type: " choice
+  ask_choice "Choose file type: " choice "1 2 3 4 5 6 7 8 9 10 0" || return 1
   case "$choice" in
     1) extensions=(pdf) ;;
     2) extensions=(doc docx odt rtf txt md) ;;
@@ -425,10 +423,26 @@ document_local_type_search() {
     8) extensions=(mp4 mkv mov avi webm m4v 3gp) ;;
     9) extensions=(apk xapk apks) ;;
     10)
-      ask "File extension (without dot): " ext
+      ask_pattern "File extension (without dot): " ext '^[A-Za-z0-9]+
+      extensions=("$ext")
+      ;;
+    0|"") return 0 ;;
+    *) warn "Invalid selection."; return 1 ;;
+  esac
+
+  document_search_choose_roots || return 0
+  tmp="$(mktemp 2>/dev/null)" || { err "Could not create a temporary search file."; return 1; }
+  info "Searching selected storage by extension..."
+  for index in "${!DOC_SELECTED_ROOTS[@]}"; do
+    for ext in "${extensions[@]}"; do
+      find "${DOC_SELECTED_ROOTS[$index]}" -type f -iname "*.$ext" -print0 2>/dev/null >> "$tmp"
+    done
+  done
+  document_search_show_matches "$tmp" "FILE TYPE RESULTS"
+}
+ "Enter an extension using letters and numbers only." || return 1
       ext="${ext#.}"
-      ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"
-      [ -n "$ext" ] || { warn "Invalid extension."; return 1; }
+      ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
       extensions=("$ext")
       ;;
     0|"") return 0 ;;
