@@ -20,13 +20,14 @@ VIDEO
 
 VIDEO EXTRAS
   Download a video with English manual/automatic subtitles, or choose
-  video-only mode to download the video stream without an audio track.
+  video-only mode with Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p.
 
 TELEGRAM
   Telegram downloads are saved in Movies/Telegram.
   Choose 1, 2, 4, or 8 transfer threads before downloading.
-  Retry the same link after an interruption to resume supported partial
-  transfers; the downloader uses tdl --continue.
+  --continue restores tdl's saved message-list progress and --skip-same
+  skips completed files. Byte-level resume of a partial file requires a
+  tdl build that includes upstream PR #1388; stable builds may restart it.
   After a successful download, optionally create a 1080p, 720p, 480p,
   or 360p FFmpeg copy. The original file is never replaced.
 
@@ -42,7 +43,8 @@ PLAYLISTS
 DOCUMENTS & FILES
   PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, ZIP/RAR/7z, EPUB, TXT, CSV, APK,
   and XAPK links are automatically routed to Documents or Documents/APKs.
-  Use menu option 12 to enter a file URL manually.
+  Downloads resume into the same URL-derived filename when the server
+  supports HTTP range requests. Use menu option 12 to enter a file URL manually.
 
 APK DOWNLOAD
   Direct APK URLs, APKPure, and F-Droid options are available.
