@@ -18,7 +18,6 @@ video_download() {
   local url="$1" mode="$2" speed=2
   [ -n "$url" ] || ask "Video URL: " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
-  # Return non-zero on cancellation so queue mode keeps this URL for later.
   resolution_menu || return 1
   [ "$mode" = turbo ] && speed=8
   info "Downloading with up to $speed parallel fragments where supported."
@@ -30,14 +29,11 @@ playlist_download() {
   local url="${1:-}" folder_name playlist_dir rc
   [ -n "$url" ] || ask "Playlist URL: " url
   valid_url "$url" || { err "Please enter a valid http(s) playlist URL."; return 1; }
-
   ask "Folder name for this playlist (inside Movies): " folder_name
-  # Keep the folder name safe: no path separators, traversal, or shell metacharacters.
   folder_name="$(printf '%s' "$folder_name" | tr -cd '[:alnum:] _.-' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | cut -c1-80)"
   case "$folder_name" in
     ""|"."|"..") err "Please enter a valid folder name."; return 1 ;;
   esac
-
   resolution_menu || return 1
   playlist_dir="$VIDEO_DIR/$folder_name"
   mkdir -p "$playlist_dir" || { err "Could not create playlist folder: $playlist_dir"; return 1; }
@@ -68,7 +64,6 @@ audio_download() {
   local rc=$?; [ "$rc" -eq 0 ] && record_history audio "$url" && scan_media "$MUSIC_DIR"; return "$rc"
 }
 
-
 video_subtitle_download() {
   local url="${1:-}" choice format rc subtitle_dir="$VIDEO_DIR/Subtitles"
   [ -n "$url" ] || ask "Video URL: " url
@@ -86,20 +81,30 @@ video_subtitle_download() {
   mkdir -p "$subtitle_dir"
   run_ytdlp -4 -N 2 --sleep-interval 2 --max-sleep-interval 5 --download-archive "$HOME/.yt-dlp-subtitles-archive.txt" --write-subs --write-auto-subs --sub-langs "en.*,en" --embed-subs -f "$format" --merge-output-format mp4 -P "$subtitle_dir" -o "$OUT_TMPL" "$url"
   rc=$?
-  if [ "$rc" -eq 0 ]; then
-    record_history video_subtitles "$url"
-    scan_media "$subtitle_dir"
-  fi
+  if [ "$rc" -eq 0 ]; then record_history video_subtitles "$url"; scan_media "$subtitle_dir"; fi
   return "$rc"
 }
 
 video_only_download() {
-  local url="${1:-}" rc video_only_dir="$VIDEO_DIR/VideoOnly"
+  local url="${1:-}" rc choice format archive_tag video_only_dir="$VIDEO_DIR/VideoOnly"
   [ -n "$url" ] || ask "Video URL (video stream without audio): " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
+  banner "VIDEO-ONLY RESOLUTION"
+  printf " 1) Best available\n 2) Up to 2160p\n 3) Up to 1440p\n 4) Up to 1080p\n 5) Up to 720p\n 6) Up to 480p\n 7) Up to 360p\n 0) Cancel\n"
+  ask "Choose: " choice
+  case "$choice" in
+    1) format='bestvideo/best'; archive_tag="best" ;;
+    2) format='bestvideo[height<=2160]/bestvideo'; archive_tag="2160p" ;;
+    3) format='bestvideo[height<=1440]/bestvideo'; archive_tag="1440p" ;;
+    4) format='bestvideo[height<=1080]/bestvideo'; archive_tag="1080p" ;;
+    5) format='bestvideo[height<=720]/bestvideo'; archive_tag="720p" ;;
+    6) format='bestvideo[height<=480]/bestvideo'; archive_tag="480p" ;;
+    7) format='bestvideo[height<=360]/bestvideo'; archive_tag="360p" ;;
+    *) return 1 ;;
+  esac
+  mkdir -p "$video_only_dir" || { err "Could not create video-only folder."; return 1; }
   info "Downloading video-only stream (no audio track)."
-  mkdir -p "$video_only_dir"
-  run_ytdlp -4 -N 2 --download-archive "$HOME/.yt-dlp-video-only-archive.txt" -f 'bestvideo[ext=mp4]/bestvideo' -P "$video_only_dir" -o "$OUT_TMPL" "$url"
+  run_ytdlp -4 -N 2 --continue --download-archive "$HOME/.yt-dlp-video-only-$archive_tag-archive.txt" -f "$format" -P "$video_only_dir" -o "$OUT_TMPL" "$url"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     record_history video_only "$url"
@@ -112,7 +117,7 @@ video_extras_menu() {
   local url="${1:-}" choice
   while true; do
     banner "VIDEO EXTRAS"
-    printf " 1) Download video with English subtitles\n 2) Download video only (no audio)\n 0) Back\n"
+    printf " 1) Download video with English subtitles\n 2) Download video only (choose resolution, no audio)\n 0) Back\n"
     ask "Choose: " choice
     case "$choice" in
       1) video_subtitle_download "$url"; url="" ;;
