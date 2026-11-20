@@ -36,6 +36,7 @@ CyberForge is a menu-driven downloader and media toolkit built for **Termux on A
 - **Android network shortcut:** open Android Radio Information for manual LTE/4G selection.
 - **Tool update center:** update Termux packages, yt-dlp, optional Python media tools, and inspect installed versions without leaving the menu.
 - **Android sharing:** share supported links from other apps to Termux.
+- **Input validation:** invalid menu choices and validated fields can be retried up to three times with a clear error; yes/no confirmations retain their normal confirmation behavior.
 
 ## Requirements
 
