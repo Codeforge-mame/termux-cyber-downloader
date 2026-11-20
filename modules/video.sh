@@ -68,20 +68,33 @@ video_subtitle_download() {
   local url="${1:-}" choice format rc subtitle_dir="$VIDEO_DIR/Subtitles"
   [ -n "$url" ] || ask "Video URL: " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
-  banner "VIDEO WITH SUBTITLES"
-  printf " 1) Best available + English subtitles\n 2) 720p + English subtitles\n 3) 480p + English subtitles\n 4) 360p + English subtitles\n 0) Cancel\n"
+  banner "VIDEO + ENGLISH SUBTITLES"
+  printf " 1) Best available + English subtitles\\n 2) 720p + English subtitles\\n 3) 480p + English subtitles\\n 4) 360p + English subtitles\\n 0) Cancel\\n"
   ask "Choose: " choice
   case "$choice" in
-    1) format='bestvideo+bestaudio/best' ;;
-    2) format='bestvideo[height<=720]+bestaudio/best[height<=720]/best' ;;
-    3) format='bestvideo[height<=480]+bestaudio/best[height<=480]/best' ;;
-    4) format='bestvideo[height<=360]+bestaudio/best[height<=360]/best' ;;
+    1) format='bv*+ba/b' ;;
+    2) format='bv*[height<=720]+ba/b[height<=720]/b' ;;
+    3) format='bv*[height<=480]+ba/b[height<=480]/b' ;;
+    4) format='bv*[height<=360]+ba/b[height<=360]/b' ;;
     *) return 1 ;;
   esac
-  mkdir -p "$subtitle_dir"
-  run_ytdlp -4 -N 2 --sleep-interval 2 --max-sleep-interval 5 --download-archive "$HOME/.yt-dlp-subtitles-archive.txt" --write-subs --write-auto-subs --sub-langs "en.*,en" --embed-subs -f "$format" --merge-output-format mp4 -P "$subtitle_dir" -o "$OUT_TMPL" "$url"
+  mkdir -p "$subtitle_dir" || { err "Could not create subtitle download folder."; return 1; }
+  info "Downloading the video and English subtitles together..."
+  info "The video will be saved in: $subtitle_dir"
+  run_ytdlp --ignore-config --no-simulate --no-skip-download -4 -N 2 \
+    --sleep-interval 2 --max-sleep-interval 5 \
+    --write-subs --write-auto-subs --sub-langs "en.*,en" \
+    --convert-subs srt --embed-subs --embed-metadata \
+    -f "$format" --merge-output-format mp4 --remux-video mp4 \
+    -P "$subtitle_dir" -o "$OUT_TMPL" "$url"
   rc=$?
-  if [ "$rc" -eq 0 ]; then record_history video_subtitles "$url"; scan_media "$subtitle_dir"; fi
+  if [ "$rc" -eq 0 ]; then
+    record_history video_subtitles "$url"
+    scan_media "$subtitle_dir"
+    ok "Video download completed. English subtitles were embedded when available."
+  else
+    err "Video + subtitle download failed (exit code $rc). Check whether this source provides a downloadable video and English subtitles."
+  fi
   return "$rc"
 }
 
