@@ -26,6 +26,21 @@ video_download() {
   local rc=$?; [ "$rc" -eq 0 ] && record_history video "$url" && scan_media "$VIDEO_DIR"
   return "$rc"
 }
+playlist_download() {
+  local url="${1:-}" rc
+  [ -n "$url" ] || ask "Playlist URL: " url
+  valid_url "$url" || { err "Please enter a valid http(s) playlist URL."; return 1; }
+  resolution_menu || return 1
+  info "Downloading playlist into its own folder under $VIDEO_DIR."
+  run_ytdlp -4 -N 2 --yes-playlist --continue --download-archive "$ARCHIVE_FILE" -f "$FORMAT" --merge-output-format mp4 -P "$VIDEO_DIR" -o "$OUT_TMPL" "$url"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
+    record_history playlist "$url"
+    scan_media "$VIDEO_DIR"
+    ok "Playlist download finished."
+  fi
+  return "$rc"
+}
 trim_download() {
   local url="$1" start_t end_t
   [ -n "$url" ] || ask "Video URL: " url
