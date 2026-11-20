@@ -48,11 +48,10 @@ warn() { printf "%b[WARN]%b %s\n" "$Y" "$N" "$*"; }
 err() { printf "%b[ERR]%b %s\n" "$R" "$N" "$*" >&2; }
 
 ask() {
-  local prompt="$1" __var="$2" answer
-  read -r -p "$(printf '%b' "${Y}$prompt${N}")" answer
-  printf -v "$__var" '%s' "$answer"
+  local prompt="$1" __var="$2" _ask_answer
+  read -r -p "$(printf '%b' "${Y}$prompt${N}")" _ask_answer
+  printf -v "$__var" '%s' "$_ask_answer"
 }
-
 # Retry a fixed menu choice. Confirmation prompts such as [y/N] keep using ask().
 ask_choice() {
   local prompt="$1" __var="$2" allowed="$3" answer attempt
