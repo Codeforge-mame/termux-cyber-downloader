@@ -23,7 +23,10 @@ VIDEO EXTRAS
   video-only mode to download the video stream without an audio track.
 
 TELEGRAM
+  Telegram downloads are saved in Movies/Telegram.
   Choose 1, 2, 4, or 8 transfer threads before downloading.
+  Retry the same link after an interruption to resume supported partial
+  transfers; the downloader uses tdl --continue.
   After a successful download, optionally create a 1080p, 720p, 480p,
   or 360p FFmpeg copy. The original file is never replaced.
 
@@ -32,8 +35,9 @@ QUEUE
   Edit the queue from the menu or with nano.
 
 PLAYLISTS
-  Use the dedicated playlist option. Each playlist is stored in its own
-  subfolder under the Movies directory, with numbered filenames.
+  Before each playlist download, enter a folder name. The playlist is saved
+  in Movies/<folder name>/ with numbered filenames. Reuse the same folder
+  name when retrying an interrupted playlist download.
 
 DOCUMENTS & FILES
   PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, ZIP/RAR/7z, EPUB, TXT, CSV, APK,
