@@ -818,9 +818,15 @@ try:
             name = info.filename
             data = src.read(name)
             lower = name.lower()
-            if lower in ("docprops/core.xml", "docprops/app.xml", "docprops/custom.xml", "meta.xml"):
+            if lower in ("docprops/core.xml", "docprops/app.xml", "docprops/custom.xml"):
                 root = ET.fromstring(data)
                 root.clear()
+                data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            elif lower == "meta.xml":
+                root = ET.fromstring(data)
+                for node in root.iter():
+                    if local(node.tag) == "meta":
+                        node.clear()
                 data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
             elif fmt == "epub" and lower.endswith(".opf"):
                 root = ET.fromstring(data)
