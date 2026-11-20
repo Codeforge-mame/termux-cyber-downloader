@@ -14,8 +14,9 @@ A modular Termux downloader with video, subtitles, video-only mode, playlists, d
 - Optional FFmpeg conversion after Telegram download creates a separate copy and retains the original.
 - Sequential queue with failed or cancelled URLs retained for retry.
 - Direct APK URL downloads plus APKPure/F-Droid options through apkeep. The local APK scanner and general Android control panel are not included.
-- Movie title search for legitimate streaming, rental, library, and official sources.
-- Direct document and archive downloads, automatically routed from Android Share or clipboard to Documents or Documents/APKs.\n- One-tap shortcut to Android Radio Information for manual LTE-only / 4G selection.\n- Image downloads from direct URLs and supported social/gallery pages through gallery-dl.
+- Direct document and archive downloads, automatically routed from Android Share or clipboard to Documents or Documents/APKs.
+- One-tap shortcut to Android Radio Information for manual LTE-only / 4G selection.
+- Image downloads from direct URLs and supported social/gallery pages through gallery-dl.
 - Video thumbnail downloads.
 - Image processing: square, widescreen, vertical and portrait crops; blurred fit; conversion/compression; metadata stripping; custom dimensions; Expo assets; Web/PWA assets; image-to-PDF.
 
@@ -51,16 +52,25 @@ source ~/.bashrc
 
 ## Usage
 
-- Type `DL` or `dl` to open the main menu.
+- Type `DL` or `dl` to open the interactive main menu.
 - Type `help` to open the help page.
 - Share a supported URL from another app to Termux.
 - Telegram `t.me` links auto-start the Telegram flow.
+- Supported document/file links auto-download to Documents or Documents/APKs.
 
-### Video, subtitles, and playlists\n\nThe Video Extras menu offers English manual/automatic subtitle downloads with embedding where supported, plus video-only downloads without an audio stream.\n\n### Documents and Android network settings\n\nPDF, Office, ZIP/RAR/7z, EPUB, TXT, CSV, APK, and XAPK links shared to the launcher are routed to Documents or Documents/APKs. The menu also has a dedicated shortcut to Android Radio Information. Selecting LTE only can lock a compatible device to 4G, but may affect voice calls; restore Auto or LTE/WCDMA when needed. The broader Android control panel and local APK scanner have been removed.\n\n### Video and playlists
+### Video, subtitles, and playlists
 
 Choose Best, 2160p, 1440p, 1080p, 720p, 480p, or 360p. Turbo mode uses eight parallel fragments when supported. Trim mode asks for start and end timestamps.
 
+The Video Extras menu offers English manual/automatic subtitle downloads with embedding where supported, plus video-only downloads without an audio stream.
+
 Use the dedicated Playlist option for playlist URLs. The downloader uses yt-dlp's playlist title and index output template, creating a separate folder for each playlist under `~/storage/movies`. The download archive prevents already-downloaded entries from being downloaded again.
+
+### Documents and Android network settings
+
+PDF, Office, ZIP/RAR/7z, EPUB, TXT, CSV, APK, and XAPK links shared to the launcher are routed to Documents or Documents/APKs. Menu option 12 accepts a file URL manually.
+
+Menu option 13 opens Android Radio Information. Selecting LTE only can lock a compatible device to 4G, but may affect voice calls; restore Auto or LTE/WCDMA when needed. The broader Android control panel and local APK scanner have been removed.
 
 ### Queue
 
@@ -76,7 +86,7 @@ The Image & Media Tools menu supports direct image URLs and gallery/social URLs 
 
 ### APK downloads
 
-Direct URLs are saved under Documents/APKs. The apkeep sources require apkeep to be installed. Verify APK provenance before installing.
+Direct URLs are saved under Documents/APKs. The apkeep sources require apkeep to be installed. Verify APK provenance before installing. The old local APK scanner is removed.
 
 ### Movie / series search
 
@@ -94,13 +104,14 @@ lib/
 modules/
   main_menu.sh
   video.sh
+  documents.sh
   image.sh
   telegram.sh
   queue.sh
   apk.sh
   movie.sh
 legacy/
-  termux-url-opener  # retained as a backup; not linked from the main menu
+  termux-url-opener  # retained as an inactive backup, not linked from the main menu
 data/
   download_queue.txt
   download_history.txt
@@ -111,6 +122,7 @@ data/
 - yt-dlp `-N 8` controls concurrent fragment downloads, not a guaranteed eightfold speedup. Some sites do not support fragment concurrency.
 - Telegram's selected `tdl -t` value controls Telegram transfer workers. More threads do not guarantee higher speed; connection quality and Telegram/API behavior also matter.
 - Social/gallery image downloads depend on the site's support in the installed gallery-dl version.
+- The Android Radio Information activity may differ across device manufacturers and Android versions. LTE-only mode may disable voice calls on some networks.
 - Movie search only helps locate legitimate availability; it does not download copyrighted movies from unauthorized sources.
 - This is a Termux Bash toolkit. Only use network or device functions on systems you own or are authorized to manage.
 
