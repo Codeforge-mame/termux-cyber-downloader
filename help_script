@@ -49,13 +49,15 @@ PLAYLISTS
 
 DOCUMENT MANAGER
   Menu option 12 opens the Document Manager.
-  Find local files by filename in internal shared storage, accessible SD cards,
-  and detected USB/removable volumes. Select a numbered match to validate it,
+  Find local files by filename or search by type (PDF, Word/text, spreadsheets,
+  presentations, images, archives, audio, video, APK, or a custom extension) in
+  internal shared storage, accessible SD cards, and detected USB/removable volumes.
+  Select a numbered match to validate it,
   view its path, size, extension, and MIME type when the file command is installed.
   Search is read-only: original files are never renamed, moved, or modified.
   Download a document or archive from a URL using the download option.
   Android storage permissions limit which folders Termux can scan.
-  File-type and document-content searches, plus conversion, are planned later.
+  Searching inside document contents and file conversion are planned later.
 
 APK DOWNLOAD
   Direct APK URLs, APKPure, and F-Droid options are available.
