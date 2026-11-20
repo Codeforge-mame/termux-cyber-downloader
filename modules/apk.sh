@@ -6,7 +6,7 @@ apk_menu() {
   case "$a" in
     1)
       local url name
-      ask "Direct APK URL: " url; valid_url "$url" || { err "Invalid URL."; return 1; }
+      ask_url "Direct APK URL: " url || return 1
       ask "Output filename (e.g. app.apk): " name
       [[ "$name" == *.apk || "$name" == *.xapk ]] || name="${name:-download}.apk"
       mkdir -p "$APK_DIR"
