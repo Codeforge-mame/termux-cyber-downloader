@@ -15,7 +15,7 @@ main_menu() {
       " 9) Playlist download" \
       "10) Image & media tools" \
       "11) Video + subtitles" \
-      "12) Documents / files" \
+      "12) Document Manager" \
       "13) 4G network settings" \
       "14) Tool update center" \
       " h) Help" \
