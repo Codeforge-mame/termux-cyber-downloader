@@ -2,7 +2,7 @@
 
 document_download() {
   local url="${1:-}" clean ext target_dir rc filename output_file
-  [ -n "$url" ] || ask "Document or archive URL: " url
+  [ -n "$url" ] || ask_url "Document or archive URL: " url || return 1
   valid_url "$url" || { err "Please enter a valid http(s) URL."; return 1; }
   clean="${url%%\?*}"
   ext="${clean##*.}"
