@@ -16,7 +16,11 @@ document_search_add_root() {
     [ "$existing" = "$resolved" ] && return 0
   done
   # Probe actual access: Android scoped storage can deny access despite -r/-x.
-  ls -A -- "$resolved" >/dev/null 2>&1 || return 0
+  if ! ls -A -- "$resolved" >/dev/null 2>&1; then
+    DOC_SEARCH_BLOCKED_PATHS+=("$resolved")
+    DOC_SEARCH_BLOCKED_LABELS+=("$label")
+    return 0
+  fi
   probe="$(mktemp "$resolved/.cyberforge-access.XXXXXX" 2>/dev/null)" && {
     writable=1
     rm -f -- "$probe" 2>/dev/null || writable=0
