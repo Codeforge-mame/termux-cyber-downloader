@@ -46,11 +46,19 @@ git -C "$BUILD_ROOT/src" fetch --depth 1 origin "$TDL_COMMIT"
 git -C "$BUILD_ROOT/src" checkout -q --detach FETCH_HEAD
 
 cd "$BUILD_ROOT/src"
+printf '[INFO] Running the upstream byte-resume unit tests...\n'
+GOTOOLCHAIN=local GOMAXPROCS="${GOMAXPROCS:-2}" go test ./app/dl ./core/downloader
+
 printf '[INFO] Building tdl with byte-level resume support. This may take several minutes...\n'
 GOTOOLCHAIN=local GOMAXPROCS="${GOMAXPROCS:-2}" go build -trimpath -ldflags="-s -w" -o "$BUILD_ROOT/tdl" .
 
 [ -s "$BUILD_ROOT/tdl" ] || fail "Build did not produce a tdl executable."
 "$BUILD_ROOT/tdl" --help >/dev/null 2>&1 || fail "The newly built tdl executable failed its help check."
+
+BUILD_INFO="$(go version -m "$BUILD_ROOT/tdl" 2>/dev/null || true)"
+if ! printf '%s\n' "$BUILD_INFO" | grep -Fq "$TDL_COMMIT"; then
+  fail "The built binary does not report the pinned resume commit. Refusing to install an unverified binary."
+fi
 
 BACKUP="$PREFIX/bin/tdl.stable-backup"
 if [ -x "$PREFIX/bin/tdl" ] && [ ! -e "$BACKUP" ]; then
@@ -61,17 +69,22 @@ fi
 install -m 755 "$BUILD_ROOT/tdl" "$PREFIX/bin/tdl"
 
 if ! "$PREFIX/bin/tdl" --help >/dev/null 2>&1; then
-  if [ -x "$BACKUP" ]; then
-    cp -p "$BACKUP" "$PREFIX/bin/tdl"
-  fi
+  if [ -x "$BACKUP" ]; then cp -p "$BACKUP" "$PREFIX/bin/tdl"; fi
   fail "Installed tdl failed verification; restored the previous binary when available."
+fi
+
+INSTALLED_INFO="$(go version -m "$PREFIX/bin/tdl" 2>/dev/null || true)"
+if ! printf '%s\n' "$INSTALLED_INFO" | grep -Fq "$TDL_COMMIT"; then
+  if [ -x "$BACKUP" ]; then cp -p "$BACKUP" "$PREFIX/bin/tdl"; fi
+  fail "Installed tdl is not the expected resumable build; restored the previous binary when available."
 fi
 
 MARKER_DIR="$PREFIX/share/termux-cyber-downloader"
 mkdir -p "$MARKER_DIR"
 printf '%s\n' "$TDL_COMMIT" > "$MARKER_DIR/tdl-resume-commit"
 
-printf '\n[OK] Installed tdl with byte-level Telegram resume support.\n'
+printf '\n[OK] Installed and verified tdl with byte-level Telegram resume support.\n'
 printf '[INFO] Source commit: %s\n' "$TDL_COMMIT"
+printf '[INFO] Active binary: %s/bin/tdl\n' "$PREFIX"
 printf '[INFO] Your existing tdl authentication data was not changed.\n'
 printf '[INFO] Test by interrupting a large Telegram file with Ctrl+C, then retrying the same link.\n'
