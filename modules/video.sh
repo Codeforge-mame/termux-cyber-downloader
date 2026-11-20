@@ -69,13 +69,13 @@ video_subtitle_download() {
   [ -n "$url" ] || ask "Video URL: " url
   valid_url "$url" || { err "Please provide a valid http(s) URL."; return 1; }
   banner "VIDEO + ENGLISH SUBTITLES"
-  printf " 1) Best available + English subtitles\\n 2) 720p + English subtitles\\n 3) 480p + English subtitles\\n 4) 360p + English subtitles\\n 0) Cancel\\n"
+  printf " 1) Best available + English subtitles\n 2) 720p + English subtitles\n 3) 480p + English subtitles\n 4) 360p + English subtitles\n 0) Cancel\n"
   ask "Choose: " choice
   case "$choice" in
-    1) format='bv*+ba/b' ;;
-    2) format='bv*[height<=720]+ba/b[height<=720]/b' ;;
-    3) format='bv*[height<=480]+ba/b[height<=480]/b' ;;
-    4) format='bv*[height<=360]+ba/b[height<=360]/b' ;;
+    1) format='bv+ba/b' ;;
+    2) format='bv[height<=720]+ba/b[height<=720]/b' ;;
+    3) format='bv[height<=480]+ba/b[height<=480]/b' ;;
+    4) format='bv[height<=360]+ba/b[height<=360]/b' ;;
     *) return 1 ;;
   esac
   mkdir -p "$subtitle_dir" || { err "Could not create subtitle download folder."; return 1; }
