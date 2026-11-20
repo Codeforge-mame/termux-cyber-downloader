@@ -6,6 +6,11 @@ telegram_download() {
   require_cmd tdl tdl || return 1
   mkdir -p "$telegram_dir" || { err "Could not create Telegram folder: $telegram_dir"; return 1; }
 
+  if [ ! -f "${PREFIX:-/nonexistent}/share/termux-cyber-downloader/tdl-resume-commit" ]; then
+    warn "Your installed tdl may delete unfinished files when Ctrl+C is pressed."
+    info "Enable byte-level resume once with: cd ~/termux-cyber-downloader && bash scripts/install-tdl-resume.sh"
+  fi
+
   banner "TELEGRAM DOWNLOAD THREADS"
   printf " 1) 1 thread (most conservative)\n 2) 2 threads\n 3) 4 threads\n 4) 8 threads (fastest option)\n 0) Cancel\n"
   ask "Choose thread count [default 8]: " threads_choice
@@ -20,16 +25,12 @@ telegram_download() {
 
   info "Starting Telegram download with $threads thread(s)."
   info "Destination: $telegram_dir"
-  # --continue restores tdl's saved message-list progress; --skip-same avoids
-  # downloading files that are already complete. Byte-level partial resume
-  # requires a tdl build containing upstream PR #1388.
   tdl dl -u "$url" -d "$telegram_dir" -t "$threads" --continue --skip-same
   rc=$?
 
   if [ "$rc" -ne 0 ]; then
     err "Telegram download did not complete (exit code $rc)."
-    info "Retry the same link. Completed files should be skipped; partial-file byte resume depends on your installed tdl build."
-    info "If tdl removes the incomplete temporary file, this version cannot recover those partial bytes."
+    info "Retry the same link. The patched tdl build preserves the partial file and resumes from its existing byte offset."
     return "$rc"
   fi
 
