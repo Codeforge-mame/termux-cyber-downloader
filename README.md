@@ -161,7 +161,7 @@ Choose **12) Document Manager** from the main menu. Search by filename or file t
 
 Storage discovery probes actual directory listing and write access. Locations are labelled `read/write` or `read only`; only writable locations are offered as copy/move destinations. Run `termux-setup-storage` and grant Termux file access if a mounted volume is missing. Android scoped-storage restrictions can still prevent access to some SD/USB folders, even when Android shows them in its file manager.
 
-All converted files are saved in the internal shared-storage folder `Documents/Converted`, regardless of where the source file is stored. The source file is never modified, and existing converted files are never silently overwritten. Image conversion omits the source format from its target choices. Document-to-PDF needs Pandoc and a supported PDF engine; image-to-PDF uses ImageMagick. OCR and document-content search are not included.
+After each successful conversion, choose to keep the file in `Documents/Converted` or move it to a detected writable SD card / USB drive under `CyberForge/Converted`. Removable storage is offered only when Termux can read and write it. The source file is never modified, and existing converted files are never silently overwritten. Image conversion omits the source format from its target choices. Document-to-PDF needs Pandoc and a supported PDF engine; image-to-PDF uses ImageMagick. OCR and document-content search are not included.
 
 ## Video + subtitle downloads
 
