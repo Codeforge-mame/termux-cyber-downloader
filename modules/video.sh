@@ -78,7 +78,7 @@ video_subtitle_download() {
   rc=$?
   if [ "$rc" -eq 0 ]; then
     record_history video_subtitles "$url"
-    scan_media "$VIDEO_DIR"
+    scan_media "$subtitle_dir"
   fi
   return "$rc"
 }
