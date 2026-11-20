@@ -316,9 +316,8 @@ document_local_search() {
   fi
 
   banner "FIND LOCAL FILES"
-  ask "Filename or keyword: " keyword
+  ask_nonempty "Filename or keyword: " keyword || return 1
   keyword="$(printf '%s' "$keyword" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-  [ -n "$keyword" ] || { warn "Enter a filename or keyword."; return 1; }
 
   printf '\nSEARCH LOCATIONS\n'
   for index in "${!DOC_SEARCH_PATHS[@]}"; do
