@@ -14,7 +14,7 @@ movie_search() {
   printf " 1) Google: official streaming / rental / purchase\n 2) JustWatch: streaming availability\n 3) IMDb: title details and official links\n 0) Back\n"
   printf "\nGoogle: %s\nJustWatch: %s\nIMDb: %s\n\n" "$google" "$justwatch" "$imdb"
   info "Choose a legitimate streaming, rental, library, or official distribution source."
-  ask "Open which result? " choice
+  ask_choice "Open which result? " choice "1 2 3 0" || return 1
   case "$choice" in
     1) termux-open-url "$google" 2>/dev/null || printf "Open: %s\n" "$google" ;;
     2) termux-open-url "$justwatch" 2>/dev/null || printf "Open: %s\n" "$justwatch" ;;
