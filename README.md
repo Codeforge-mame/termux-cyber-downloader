@@ -156,12 +156,12 @@ Choose **12) Document Manager** from the main menu. Search by filename or file t
 - **Copy / move:** choose an accessible destination location and optional subfolder. Existing-name collisions can be skipped, automatically renamed to keep both files, or replaced after a separate confirmation.
 - **Move safety:** CyberForge copies and byte-verifies each file before removing its original. If verification fails, the source is retained.
 - **Read / open:** preview the first 200 lines of text files in the terminal, extract selectable PDF text with Poppler, convert supported office documents to plain text with Pandoc, or open media and other binary files with Android through Termux:API.
-- **Convert selected files:** the Convert action appears when the selection contains supported DOCX, ODT, EPUB, HTML, Markdown, TXT, RTF, PDF, or common raster image files (JPG, PNG, WebP, BMP, GIF, TIFF). Pandoc is required for document conversions; selectable-text PDF extraction also requires Poppler; image conversion requires ImageMagick. Scanned PDFs are not supported because OCR is not included.
+- **Convert selected files:** convert supported DOCX, ODT, EPUB, HTML, Markdown, TXT, RTF, selectable-text PDF, and common raster images (JPG, PNG, WebP, BMP, GIF, TIFF). Image files can also be converted to PDF. Document-to-PDF requires Pandoc plus a supported PDF engine such as Tectonic, XeLaTeX, LuaLaTeX, or WeasyPrint. PDF input extraction requires Poppler; image conversion requires ImageMagick. Scanned PDFs are not supported because OCR is not included.
 - **Download a file:** the URL downloader remains available inside this menu.
 
 Storage discovery probes actual directory listing and write access. Locations are labelled `read/write` or `read only`; only writable locations are offered as copy/move destinations. Run `termux-setup-storage` and grant Termux file access if a mounted volume is missing. Android scoped-storage restrictions can still prevent access to some SD/USB folders, even when Android shows them in its file manager.
 
-Conversions create a separate output file beside the source when that folder is writable. If the source is on read-only storage, the converted file is saved in the internal Documents folder. Existing output files are never silently overwritten, and the original document is left unchanged. OCR and document-content search are not included.
+All converted files are saved in the internal shared-storage folder `Documents/Converted`, regardless of where the source file is stored. The source file is never modified, and existing converted files are never silently overwritten. Image conversion omits the source format from its target choices. Document-to-PDF needs Pandoc and a supported PDF engine; image-to-PDF uses ImageMagick. OCR and document-content search are not included.
 
 ## Video + subtitle downloads
 
