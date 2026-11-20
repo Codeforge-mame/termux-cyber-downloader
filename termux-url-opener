@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -o pipefail
 ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
-for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$ROOT/modules/video.sh" "$ROOT/modules/image.sh" "$ROOT/modules/telegram.sh" "$ROOT/modules/queue.sh" "$ROOT/modules/apk.sh" "$ROOT/modules/movie.sh" "$ROOT/modules/main_menu.sh"; do
+for file in "$ROOT/lib/colors.sh" "$ROOT/lib/config.sh" "$ROOT/lib/common.sh" "$ROOT/modules/video.sh" "$ROOT/modules/documents.sh" "$ROOT/modules/image.sh" "$ROOT/modules/telegram.sh" "$ROOT/modules/queue.sh" "$ROOT/modules/apk.sh" "$ROOT/modules/movie.sh" "$ROOT/modules/main_menu.sh"; do
   [ -r "$file" ] || { printf '[ERR] Missing toolkit file: %s\n' "$file" >&2; exit 1; }
   source "$file"
 done
@@ -15,6 +15,13 @@ URL="${1:-}"
 if [ -z "$URL" ] && command -v termux-clipboard-get >/dev/null 2>&1; then
   candidate="$(termux-clipboard-get 2>/dev/null)"
   valid_url "$candidate" && URL="$candidate"
+fi
+CLEAN_URL="${URL%%\?*}"
+if [[ "$CLEAN_URL" =~ \.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|epub|txt|csv|apk|xapk)$ ]]; then
+  document_download "$URL"
+  rc=$?
+  notify_done "File download finished."
+  exit "$rc"
 fi
 if [[ "$URL" == *t.me/* ]]; then
   telegram_download "$URL"
