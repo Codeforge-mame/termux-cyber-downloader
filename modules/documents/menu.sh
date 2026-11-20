@@ -13,7 +13,8 @@ document_manager_menu() {
     case "$choice" in
       1) document_local_search ;;
       2) document_local_type_search ;;
-      3) document_conversion_menu ;;\n      4) document_download "" ;;
+      3) document_conversion_menu ;;
+      4) document_download "" ;;
       0|q|Q) break ;;
       *) warn "Invalid selection."; continue ;;
     esac
