@@ -28,7 +28,7 @@ CyberForge is a menu-driven downloader and media toolkit built for **Termux on A
 - **Audio:** extract audio and save it as MP3.
 - **Playlists:** save playlist items into a named folder with numbered filenames.
 - **Telegram:** download public Telegram media with selectable 1, 2, 4, or 8 transfer threads using the standard `tdl` release.
-- **Document Manager:** search local filenames and file types, select multiple results, delete, copy, or move files across accessible internal/removable storage, inspect file details, and download documents or archives from URLs. Conversion remains a core planned feature.
+- **Document Manager:** search local filenames and file types, select multiple results, delete, copy, or move files, inspect file details, convert supported document formats, and download documents or archives. Storage roots are checked for real read/write access.
 - **Sequential queue:** process links one by one and keep failed or cancelled links for retry.
 - **APK downloads:** direct APK URLs and optional APKPure/F-Droid sources through `apkeep`.
 - **Image and media tools:** direct image and supported gallery downloads, video thumbnails, crops, resizing, conversion, compression, metadata stripping, Expo/Web asset packs, and image-to-PDF.
@@ -65,6 +65,11 @@ python -m pip install -U gallery-dl
 
 # Image-to-PDF support
 python -m pip install -U pillow
+
+# Document conversion (optional)
+pkg install pandoc
+# Selectable-text PDF extraction (optional, no OCR)
+pkg install poppler
 
 # Android notifications and media scanning
 pkg install termux-api -y
@@ -148,11 +153,12 @@ Choose **12) Document Manager** from the main menu.
 - **Copy / move:** choose an accessible destination location and optional subfolder. Existing-name collisions can be skipped, automatically renamed to keep both files, or replaced after a separate confirmation.
 - **Move safety:** CyberForge copies and byte-verifies each file before removing its original. If verification fails, the source is retained.
 - **Inspect files:** view the selected file's path, size, extension, readability, and MIME type when the optional `file` command is available.
+- **Convert a document:** convert supported DOCX, ODT, EPUB, HTML, Markdown, TXT, and RTF files using optional Pandoc. Selectable-text PDFs can be extracted to TXT or converted to DOCX, ODT, HTML, or Markdown when Poppler is installed. Scanned PDFs are not supported because OCR is not included.
 - **Download a file:** the URL downloader remains available inside this menu.
 
-Run `termux-setup-storage` and grant Android storage permission. SD/USB destinations appear only when Android exposes a mounted path that Termux can access. Android may restrict access to some folders.
+Storage discovery probes actual directory listing and write access. Locations are labelled `read/write` or `read only`; only writable locations are offered as copy/move destinations. Run `termux-setup-storage` and grant Termux file access if a mounted volume is missing. Android scoped-storage restrictions can still prevent access to some SD/USB folders, even when Android shows them in its file manager.
 
-**Next core feature:** file conversion remains a central purpose of Document Manager. We will add conversions based on available Termux tools, with converted output saved separately so the original is preserved. OCR and document-content search are not part of the current plan.
+Conversions create a separate output file beside the source. Existing output files are never silently overwritten, and the original document is left unchanged. OCR and document-content search are not included.
 
 ## Video + subtitle downloads
 
