@@ -144,14 +144,14 @@ document_manage_matches() {
 
   (( total > 0 )) || { warn "No matching files were found."; return 0; }
   banner "$title"
-  printf 'Found %s matching file(s).\\n' "$total"
+  printf 'Found %s matching file(s).\n' "$total"
   for idx in "${!DOC_RESULT_FILES[@]}"; do
     (( idx >= 100 )) && break
     visible+=("${DOC_RESULT_FILES[$idx]}")
-    printf '\\n%s) %s\\n   %s\\n' "$((idx + 1))" "${DOC_RESULT_FILES[$idx]##*/}" "${DOC_RESULT_FILES[$idx]}"
+    printf '\n%s) %s\n   %s\n' "$((idx + 1))" "${DOC_RESULT_FILES[$idx]##*/}" "${DOC_RESULT_FILES[$idx]}"
   done
   (( total > 100 )) && warn "Showing the first 100 results. Narrow the search before managing files."
-  printf '\\n'
+  printf '\n'
   ask "Select files (e.g. 1 35 74 or 1-5; 0 to return): " selection
   [[ "$selection" == "0" || -z "$selection" ]] && return 0
   selection="${selection//,/ }"
@@ -177,18 +177,18 @@ document_manage_matches() {
 
   (( ${#selected[@]} > 0 )) || return 0
   banner "SELECTED FILES"
-  printf 'Selected %s file(s):\\n' "${#selected[@]}"
-  for src in "${selected[@]}"; do printf ' - %s\\n' "${src##*/}"; done
-  printf '\\n'
-  printf '%s\\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
+  printf 'Selected %s file(s):\n' "${#selected[@]}"
+  for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
+  printf '\n'
+  printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 0) Cancel"
   ask "Choose operation: " action
 
   case "$action" in
     0|"") return 0 ;;
     3)
-      printf '\\n'
+      printf '\n'
       warn "Deletion is permanent. These files will be removed:"
-      for src in "${selected[@]}"; do printf ' - %s\\n' "$src"; done
+      for src in "${selected[@]}"; do printf ' - %s\n' "$src"; done
       ask "Type DELETE to confirm: " choice
       [[ "$choice" == "DELETE" ]] || { info "Deletion cancelled."; return 0; }
       deleted=0; failed=0
@@ -199,18 +199,18 @@ document_manage_matches() {
           ((failed += 1)); err "Could not delete: $src"
         fi
       done
-      printf '\\nDelete summary: %s deleted, %s failed.\\n' "$deleted" "$failed"
+      printf '\nDelete summary: %s deleted, %s failed.\n' "$deleted" "$failed"
       ;;
     1|2)
       document_search_discover_roots
       if (( ${#DOC_SEARCH_PATHS[@]} == 0 )); then
         err "No accessible destination storage was detected."; return 1
       fi
-      printf '\\nDESTINATION LOCATIONS\\n'
+      printf '\nDESTINATION LOCATIONS\n'
       for idx in "${!DOC_SEARCH_PATHS[@]}"; do
-        printf ' %s) %s\\n    %s\\n' "$((idx + 1))" "${DOC_SEARCH_LABELS[$idx]}" "${DOC_SEARCH_PATHS[$idx]}"
+        printf ' %s) %s\n    %s\n' "$((idx + 1))" "${DOC_SEARCH_LABELS[$idx]}" "${DOC_SEARCH_PATHS[$idx]}"
       done
-      printf ' 0) Cancel\\n'
+      printf ' 0) Cancel\n'
       ask "Choose destination location: " choice
       [[ "$choice" == "0" || -z "$choice" ]] && return 0
       if ! [[ "$choice" =~ ^[0-9]+$ ]] || (( choice < 1 || choice > ${#DOC_SEARCH_PATHS[@]} )); then
@@ -237,8 +237,8 @@ document_manage_matches() {
         base="${src##*/}"
         candidate="$dest/$base"
         if [ -e "$candidate" ]; then
-          printf '\\nDestination already contains: %s\\n' "$base"
-          printf '%s\\n' " s) Skip" " r) Keep both (automatic new filename)" " o) Replace existing file"
+          printf '\nDestination already contains: %s\n' "$base"
+          printf '%s\n' " s) Skip" " r) Keep both (automatic new filename)" " o) Replace existing file"
           ask "Choose for this file [s/r/o]: " choice
           case "$choice" in
             r|R)
@@ -272,10 +272,10 @@ document_manage_matches() {
         fi
       done
       if [[ "$action" == "2" ]]; then
-        printf '\\nMove summary: %s moved, %s skipped, %s failed.\\n' "$moved" "$skipped" "$failed"
+        printf '\nMove summary: %s moved, %s skipped, %s failed.\n' "$moved" "$skipped" "$failed"
         info "A source is removed only after its destination copy passes byte-for-byte verification."
       else
-        printf '\\nCopy summary: %s copied, %s skipped, %s failed.\\n' "$copied" "$skipped" "$failed"
+        printf '\nCopy summary: %s copied, %s skipped, %s failed.\n' "$copied" "$skipped" "$failed"
       fi
       ;;
     *) warn "Unknown operation." ;;
