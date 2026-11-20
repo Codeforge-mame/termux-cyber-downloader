@@ -392,7 +392,7 @@ document_search_choose_roots() {
   fi
   printf '\nSEARCH LOCATIONS\n'
   for index in "${!DOC_SEARCH_PATHS[@]}"; do
-    printf ' %s) %s\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}"
+    printf ' %s) %s [%s]\n' "$((index + 1))" "${DOC_SEARCH_LABELS[$index]}" "$([ "${DOC_SEARCH_WRITABLE[$index]}" = "1" ] && printf "read/write" || printf "read only")"
     allowed+=" $((index + 1))"
   done
   printf ' a) All detected accessible locations\n'
@@ -476,7 +476,7 @@ document_conversion_menu() {
   roots=("${DOC_SELECTED_ROOTS[@]}")
   for idx in "${!roots[@]}"; do
     while IFS= read -r -d '' src; do candidates+=("$src"); done < <(
-      find "${roots[$idx]}" -type f \\( -iname '*.docx' -o -iname '*.odt' -o -iname '*.epub' -o -iname '*.html' -o -iname '*.htm' -o -iname '*.md' -o -iname '*.txt' -o -iname '*.rtf' -o -iname '*.pdf' \\) -iname "*$query*" -print0 2>/dev/null
+      find "${roots[$idx]}" -type f \( -iname '*.docx' -o -iname '*.odt' -o -iname '*.epub' -o -iname '*.html' -o -iname '*.htm' -o -iname '*.md' -o -iname '*.txt' -o -iname '*.rtf' -o -iname '*.pdf' \) -iname "*$query*" -print0 2>/dev/null
     )
   done
   if (( ${#candidates[@]} == 0 )); then
