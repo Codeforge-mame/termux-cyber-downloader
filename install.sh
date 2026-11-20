@@ -16,14 +16,14 @@ cp "$ROOT/help_script" "$BIN_DIR/cyber-help"
 chmod +x "$BIN_DIR/termux-url-opener" "$BIN_DIR/cyber-help"
 
 touch "$BASHRC"
-grep -Fq 'export PATH="$HOME/bin:$PATH"' "$BASHRC" || printf '\nexport PATH="$HOME/bin:$PATH"\n' >> "$BASHRC"
-grep -Fq "alias DL='bash \"\$HOME/bin/termux-url-opener\"'" "$BASHRC" || printf "alias DL='bash \"\$HOME/bin/termux-url-opener\"'\n" >> "$BASHRC"
-grep -Fq "alias dl='bash \"\$HOME/bin/termux-url-opener\"'" "$BASHRC" || printf "alias dl='bash \"\$HOME/bin/termux-url-opener\"'\n" >> "$BASHRC"
-grep -Fq "alias cyberforge='bash \"\$HOME/bin/termux-url-opener\"'" "$BASHRC" || printf "alias cyberforge='bash \"\$HOME/bin/termux-url-opener\"'\n" >> "$BASHRC"
-grep -Fq "alias cyber-help='bash \"\$HOME/bin/cyber-help\"'" "$BASHRC" || printf "alias cyber-help='bash \"\$HOME/bin/cyber-help\"'\n" >> "$BASHRC"
+grep -Fq 'export PATH="$HOME/bin:$PATH"' "$BASHRC" || printf '%s\n' 'export PATH="$HOME/bin:$PATH"' >> "$BASHRC"
+grep -Fq 'alias DL=' "$BASHRC" || printf '%s\n' "alias DL='bash \$HOME/bin/termux-url-opener'" >> "$BASHRC"
+grep -Fq 'alias dl=' "$BASHRC" || printf '%s\n' "alias dl='bash \$HOME/bin/termux-url-opener'" >> "$BASHRC"
+grep -Fq 'alias cyberforge=' "$BASHRC" || printf '%s\n' "alias cyberforge='bash \$HOME/bin/termux-url-opener'" >> "$BASHRC"
+grep -Fq 'alias cyber-help=' "$BASHRC" || printf '%s\n' "alias cyber-help='bash \$HOME/bin/cyber-help'" >> "$BASHRC"
 
 printf '\n[OK] CyberForge launchers installed.\n'
 printf 'Run: source ~/.bashrc\n'
-printf 'Then use: DL   or   cyberforge\n'
+printf 'Then use: DL or cyberforge\n'
 printf 'Help: cyber-help\n'
 printf 'Android Share integration: ~/bin/termux-url-opener\n'
