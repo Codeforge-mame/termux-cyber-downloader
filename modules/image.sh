@@ -102,93 +102,10 @@ image_choose_source() {
 
 image_process_menu() {
   local source="${1:-}" choice stem ext out w h fmt bg pdf_src pdf_name rc
-  if [ -z "$source" ]; then
-    image_choose_source || return 1
-    source="$IMAGE_SOURCE"
-  fi
-  [ -f "$source" ] || { err "Image file not found."; return 1; }
-  require_cmd ffmpeg ffmpeg || return 1
-  stem="${source%.*}"; ext="${source##*.}"
   banner "IMAGE & ASSET TOOLKIT"
   printf " 1) Square crop (1080x1080)\n 2) Widescreen (1920x1080)\n 3) Vertical (1080x1920)\n 4) Portrait (1080x1350)\n 5) Blurred background fit\n 6) Convert / compress (JPG, PNG, WebP)\n 7) Strip EXIF / GPS metadata\n 8) Custom dimensions\n 9) Expo icon and splash asset pack\n10) Web / PWA icon and OG banner pack\n11) Combine images into PDF\n 0) Back\n"
   ask "Choose operation: " choice
   case "$choice" in
-    1) out="${stem}_1x1.jpg"; ffmpeg -y -v error -i "$source" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=1080:1080" "$out" ;;
-    2) out="${stem}_16x9.jpg"; ffmpeg -y -v error -i "$source" -vf "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080" "$out" ;;
-    3) out="${stem}_9x16.jpg"; ffmpeg -y -v error -i "$source" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" "$out" ;;
-    4) out="${stem}_4x5.jpg"; ffmpeg -y -v error -i "$source" -vf "scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350" "$out" ;;
-    5)
-      ask "Target frame: 1) Square 2) Wide 3) Vertical: " choice
-      w=1080; h=1080; [[ "$choice" == "2" ]] && w=1920 && h=1080; [[ "$choice" == "3" ]] && w=1080 && h=1920
-      out="${stem}_blurfit.jpg"
-      ffmpeg -y -v error -i "$source" -filter_complex "[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},boxblur=25:5[bg];[0:v]scale=${w}:${h}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2" "$out"
-      ;;
-    6)
-      ask "Output format (jpg/png/webp): " fmt; fmt="${fmt,,}"; [ -n "$fmt" ] || fmt=jpg
-      [[ "$fmt" == jpg || "$fmt" == png || "$fmt" == webp ]] || { err "Unsupported format."; return 1; }
-      out="${stem}_optimized.$fmt"
-      ffmpeg -y -v error -i "$source" -vf "scale='min(1440,iw)':-2" "$out"
-      ;;
-    7)
-      out="${stem}_clean.${ext,,}"
-      ffmpeg -y -v error -i "$source" -map_metadata -1 -c:v copy "$out" || return 1
-      ;;
-    8)
-      ask "Dimensions (width x height, e.g. 800x600): " fmt
-      [[ "$fmt" =~ ^[0-9]{2,5}x[0-9]{2,5}$ ]] || { err "Invalid dimensions."; return 1; }
-      w="${fmt%x*}"; h="${fmt#*x}"; out="${stem}_${fmt}.jpg"
-      ffmpeg -y -v error -i "$source" -vf "scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h" "$out"
-      ;;
-    9)
-      out="$PIC_DIR/Expo_Assets"; mkdir -p "$out"
-      ffmpeg -y -v error -i "$source" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=1024:1024" "$out/icon.png" || return 1
-      ffmpeg -y -v error -i "$source" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=660:660,pad=1024:1024:(ow-iw)/2:(oh-ih)/2:color=0x00000000" "$out/adaptive-icon.png" || return 1
-      ask "Splash background hex color (default #FFFFFF): " bg; bg="${bg:-#FFFFFF}"
-      ffmpeg -y -v error -f lavfi -i "color=c=$bg:s=1284x2778" -i "$source" -filter_complex "[1:v]crop='min(iw,ih)':'min(iw,ih)',scale=520:520[logo];[0:v][logo]overlay=(W-w)/2:(H-h)/2" -frames:v 1 "$out/splash-icon.png" || return 1
-      ffmpeg -y -v error -i "$out/icon.png" -vf "scale=48:48" "$out/favicon.png"
-      ffmpeg -y -v error -i "$out/icon.png" -vf "scale=96:96" "$out/notification-icon.png"
-      ok "Expo assets saved to $out"; scan_media "$out"; return 0
-      ;;
-    10)
-      out="$PIC_DIR/Web_Assets"; mkdir -p "$out"
-      ffmpeg -y -v error -i "$source" -vf "scale=1200:630:force_original_aspect_ratio=increase,crop=1200:630" "$out/og-banner-1200x630.png" || return 1
-      ffmpeg -y -v error -i "$source" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=512:512" "$out/icon-512.png" || return 1
-      ffmpeg -y -v error -i "$source" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=192:192" "$out/icon-192.png"
-      ffmpeg -y -v error -i "$source" -vf "crop='min(iw,ih)':'min(iw,ih)',scale=180:180" "$out/apple-touch-icon.png"
-      ok "Web assets saved to $out"; scan_media "$out"; return 0
-      ;;
-    11)
-      require_cmd python python || return 1
-      ask "Folder containing images (default Pictures): " pdf_src; pdf_src="${pdf_src:-$PIC_DIR}"
-      ask "PDF output name (default combined_images.pdf): " pdf_name; pdf_name="${pdf_name:-combined_images.pdf}"
-      [[ "$pdf_name" == *.pdf ]] || pdf_name="$pdf_name.pdf"
-      python - "$pdf_src" "$DOC_DIR/$pdf_name" <<'PY'
-import glob, os, sys
-try:
-    from PIL import Image
-except ImportError:
-    print("Pillow is required: pip install pillow")
-    raise SystemExit(1)
-src, out = sys.argv[1], sys.argv[2]
-files = sorted(f for pattern in ("*.jpg", "*.jpeg", "*.png", "*.webp") for f in glob.glob(os.path.join(src, pattern)))
-if not files:
-    print("No supported images found.")
-    raise SystemExit(1)
-images = []
-for path in files[:100]:
-    try:
-        with Image.open(path) as im:
-            images.append(im.convert("RGB").copy())
-    except Exception:
-        continue
-if not images:
-    print("No readable images found.")
-    raise SystemExit(1)
-images[0].save(out, save_all=True, append_images=images[1:])
-print(f"Created {out} from {len(images)} image(s).")
-PY
-      rc=$?; [ "$rc" -eq 0 ] && scan_media "$DOC_DIR"; return "$rc"
-      ;;
     0|"") return 0 ;;
     *) warn "Unknown image operation."; return 1 ;;
   esac
