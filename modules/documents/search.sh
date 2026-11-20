@@ -48,8 +48,20 @@ document_search_discover_roots() {
     document_search_add_root "Removable storage: $name" "$path"
   done
 
-  # Android SD cards commonly mount as /storage/XXXX-XXXX; USB/OTG paths vary.
-  for path in /storage/* /mnt/media_rw/*; do
+  # Android may deny listing /storage even when a known FUSE volume path
+  # is accessible. Read mount tables to discover /storage/<volume-id> paths.
+  # Do not scan /mnt/media_rw: it is the privileged backing mount and is
+  # commonly inaccessible to Termux even when the FUSE path is writable.
+  while read -r device mountpoint fstype options rest; do
+    [[ "$mountpoint" == /storage/* ]] || continue
+    name="${mountpoint##*/}"
+    case "$name" in emulated|self|media_rw|user|pass_through) continue ;; esac
+    document_search_add_root "SD / external storage: $name" "$mountpoint"
+  done < /proc/mounts
+
+  # Keep direct FUSE-path globbing as a fallback on Android versions where
+  # /storage can be enumerated normally.
+  for path in /storage/*; do
     [ -d "$path" ] || continue
     name="${path##*/}"
     case "$name" in emulated|self|media_rw|user|pass_through) continue ;; esac
