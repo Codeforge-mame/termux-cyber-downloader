@@ -55,7 +55,7 @@ image_pick_local() {
   for i in "${!images[@]}"; do printf " %2d) %s\n" "$((i+1))" "${images[$i]#"$HOME/storage/shared/"}"; done
   ask "Select image number (0 = cancel): " selection
   [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le "${#images[@]}" ] || return 1
-  printf '%s\n' "${images[$((selection-1))]}"
+  IMAGE_SOURCE="${images[$((selection-1))]}"
 }
 
 image_choose_source() {
@@ -88,7 +88,7 @@ image_choose_source() {
         mkdir -p "$PIC_DIR"
         cp -n "$found" "$target" 2>/dev/null || { target="$PIC_DIR/$(date +%s)_$(basename "$found")"; cp "$found" "$target"; }
         rm -rf "$temp"
-        printf '%s\n' "$target"
+        IMAGE_SOURCE="$target"
       else
         rm -rf "$temp"
         err "No supported image was found at that URL."
