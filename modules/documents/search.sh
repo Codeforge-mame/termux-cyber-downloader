@@ -221,10 +221,10 @@ document_manage_matches() {
     if document_file_is_convertible "$src"; then can_convert=1; break; fi
   done
   if (( can_convert )); then
-    printf '%s\\n' " 1) Copy" " 2) Move" " 3) Delete" " 4) Convert supported selected files" " 5) Read / open selected files" " 0) Cancel"
+    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 4) Convert supported selected files" " 5) Read / open selected files" " 0) Cancel"
     ask_choice "Choose operation: " action "1 2 3 4 5 0" || return 1
   else
-    printf '%s\\n' " 1) Copy" " 2) Move" " 3) Delete" " 5) Read / open selected files" " 0) Cancel"
+    printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete" " 5) Read / open selected files" " 0) Cancel"
     ask_choice "Choose operation: " action "1 2 3 5 0" || return 1
   fi
 
