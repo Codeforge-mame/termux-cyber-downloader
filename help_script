@@ -59,7 +59,7 @@ NETWORK SHORTCUT
 
 TOOL UPDATE CENTER
   Menu option 14 updates Termux packages, yt-dlp, optional Python media tools,
-  and displays installed tool versions. Use the update check to see pending updates.
+  displays versions, and checks which packages have updates available. Use the update check to see pending updates.
 
 MOVIE / SERIES
   Search Google, JustWatch, or IMDb for legitimate sources.
