@@ -62,7 +62,7 @@ image_choose_source() {
   local url="${1:-}" choice temp rc found
   banner "SELECT IMAGE SOURCE"
   printf " 1) Download from URL / social post\n 2) Pick an image from phone storage\n 0) Cancel\n"
-  ask "Choose: " choice
+  ask_choice "Choose: " choice "1 2 0" || return 1
   case "$choice" in
     1)
       [ -n "$url" ] || ask "Image or post URL: " url
@@ -104,7 +104,7 @@ image_process_menu() {
   local source="${1:-}" choice stem ext out w h fmt bg pdf_src pdf_name rc
   banner "IMAGE & ASSET TOOLKIT"
   printf " 1) Square crop (1080x1080)\n 2) Widescreen (1920x1080)\n 3) Vertical (1080x1920)\n 4) Portrait (1080x1350)\n 5) Blurred background fit\n 6) Convert / compress (JPG, PNG, WebP)\n 7) Strip EXIF / GPS metadata\n 8) Custom dimensions\n 9) Expo icon and splash asset pack\n10) Web / PWA icon and OG banner pack\n11) Combine images into PDF\n 0) Back\n"
-  ask "Choose operation: " choice
+  ask_choice "Choose operation: " choice "0 1 2 3 4 5 6 7 8 9 10 11" || return 1
 
   case "$choice" in
     0|"") return 0 ;;
@@ -175,7 +175,7 @@ PY
       ffmpeg -y -v error -i "$source" -vf "scale=1080:1350:force_original_aspect_ratio=increase,crop=1080:1350" "$out"
       ;;
     5)
-      ask "Target frame: 1) Square 2) Wide 3) Vertical: " choice
+      ask_choice "Target frame: 1) Square 2) Wide 3) Vertical: " choice "1 2 3" || return 1
       w=1080; h=1080
       [[ "$choice" == "2" ]] && w=1920 && h=1080
       [[ "$choice" == "3" ]] && w=1080 && h=1920
@@ -183,9 +183,8 @@ PY
       ffmpeg -y -v error -i "$source" -filter_complex "[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},boxblur=25:5[bg];[0:v]scale=${w}:${h}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2" "$out"
       ;;
     6)
-      ask "Output format (jpg/png/webp): " fmt
-      fmt="${fmt,,}"; [ -n "$fmt" ] || fmt=jpg
-      [[ "$fmt" == jpg || "$fmt" == png || "$fmt" == webp ]] || { err "Unsupported format."; return 1; }
+      ask_choice "Output format (jpg/png/webp): " fmt "jpg JPG png PNG webp WEBP" || return 1
+      fmt="${fmt,,}"
       out="${stem}_optimized.$fmt"
       ffmpeg -y -v error -i "$source" -vf "scale='min(1440,iw)':-2" "$out"
       ;;
@@ -194,8 +193,7 @@ PY
       ffmpeg -y -v error -i "$source" -map_metadata -1 -c:v copy "$out"
       ;;
     8)
-      ask "Dimensions (width x height, e.g. 800x600): " fmt
-      [[ "$fmt" =~ ^[0-9]{2,5}x[0-9]{2,5}$ ]] || { err "Invalid dimensions."; return 1; }
+      ask_pattern "Dimensions (width x height, e.g. 800x600): " fmt "^[0-9]{2,5}x[0-9]{2,5}$" "Use dimensions like 800x600." || return 1
       w="${fmt%x*}"; h="${fmt#*x}"; out="${stem}_${fmt}.jpg"
       ffmpeg -y -v error -i "$source" -vf "scale=$w:$h:force_original_aspect_ratio=increase,crop=$w:$h" "$out"
       ;;
@@ -232,7 +230,7 @@ image_menu() {
   while true; do
     banner "IMAGE & MEDIA TOOLS"
     printf " 1) Download image / social gallery\n 2) Download video thumbnail\n 3) Process an image / create asset pack\n 0) Back\n"
-    ask "Choose: " choice
+    ask_choice "Choose: " choice "1 2 3 0" || return 1
     case "$choice" in
       1) image_download "$url"; url="" ;;
       2) thumbnail_download "$url"; url="" ;;
