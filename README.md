@@ -11,7 +11,7 @@ A modular Termux downloader with video, subtitles, video-only mode, playlists, d
 - Playlist mode asks for a folder name and saves each playlist under its own folder in Movies.
 - Playlist-aware filenames with playlist index numbers.
 - Telegram downloads are saved in Movies/Telegram, with selectable 1, 2, 4, or 8 transfer threads.
-- Telegram retries use tdl's --continue and --skip-same options to restore task progress and skip completed files.
+- Telegram uses a pinned tdl build with byte-level partial-file resume after the optional resume installer is run.
 - Direct document and archive downloads resume into a stable URL-derived filename when the server supports HTTP Range requests.
 - Optional FFmpeg conversion after Telegram download creates a separate copy and retains the original.
 - Sequential queue with failed or cancelled URLs retained for retry.
@@ -78,9 +78,22 @@ Menu option 13 opens Android Radio Information. Selecting LTE only can lock a co
 
 Add links from the menu, edit the queue in nano, and run it sequentially. Failed or cancelled URLs remain in `data/download_queue.txt`.
 
-### Telegram
+### Telegram byte-level resume
 
-Requires an authenticated `tdl` installation. Telegram media is saved in `~/storage/movies/Telegram`. Choose 1, 2, 4, or 8 transfer threads. The downloader uses `--continue --skip-same` to restore tdl's saved task progress and skip files already completed. Important: byte-level continuation of a partially downloaded single file is not available in every released tdl build. The upstream implementation is tracked in [tdl PR #1388](https://github.com/iyear/tdl/pull/1388); until a build containing that change is installed, a partial file may be discarded and restarted. After a successful download, choose whether to keep the original or create a 1080p, 720p, 480p, or 360p FFmpeg copy; the original is not overwritten.
+The stable tdl release may delete an unfinished temporary file when Ctrl+C interrupts a download. The upstream fix is available in [tdl PR #1388](https://github.com/iyear/tdl/pull/1388), but that PR is not merged yet.
+
+To enable true partial-file resume in Termux, run this once from the project folder:
+
+```bash
+pkg install git golang -y
+bash scripts/install-tdl-resume.sh
+```
+
+The installer builds tdl from the exact PR commit `de945f54fad2b385a785d436bbdc7b2973d7aa91`, which includes partial-file preservation and byte-offset continuation. It requires Go 1.25.8 or newer and may take several minutes to compile. Your existing tdl binary is backed up as `$PREFIX/bin/tdl.stable-backup`; your Telegram login/session data is not changed.
+
+After installation, retry the same Telegram link using the same `--continue` flow. On Ctrl+C, the partial `.tmp` file should remain in `Movies/Telegram`, and the next run should continue from its existing byte size rather than starting from zero. This is an upstream pre-release build, so verify it with a large test file before relying on it for important downloads.
+
+After a successful download, choose whether to keep the original or create a 1080p, 720p, 480p, or 360p FFmpeg copy; the original is not overwritten.
 
 ### Images and media
 
@@ -99,6 +112,8 @@ Enter a title and choose Google, JustWatch, or IMDb to find legitimate availabil
 ```text
 termux-url-opener
 help_script
+scripts/
+  install-tdl-resume.sh
 lib/
   colors.sh
   config.sh
@@ -123,7 +138,7 @@ data/
 
 - yt-dlp `-N 8` controls concurrent fragment downloads, not a guaranteed eightfold speedup. Some sites do not support fragment concurrency.
 - Telegram's selected `tdl -t` value controls Telegram transfer workers. More threads do not guarantee higher speed; connection quality and Telegram/API behavior also matter.
-- Telegram byte-level partial-file resume depends on the installed tdl build. `--continue` and `--skip-same` do not guarantee resuming the bytes of an unfinished single file.
+- Telegram byte-level resume is enabled only after installing the pinned patched tdl build. The build is based on an open upstream pull request and should be tested on the device.
 - HTTP file resume requires the server to support byte ranges and to return a compatible response.
 - Social/gallery image downloads depend on the site's support in the installed gallery-dl version.
 - The Android Radio Information activity may differ across device manufacturers and Android versions. LTE-only mode may disable voice calls.
@@ -132,4 +147,4 @@ data/
 
 ## Dependencies
 
-Core: Bash, yt-dlp, Python, curl. FFmpeg is required for video/image processing. Termux:API is optional for notifications and media scanning. Optional: gallery-dl (social/gallery image downloads), Pillow (image-to-PDF), tdl (Telegram), apkeep (APK sources), nano (queue editing). Android Radio Information shortcut requires the Android activity manager, normally available in Termux.
+Core: Bash, yt-dlp, Python, curl. FFmpeg is required for video/image processing. Termux:API is optional for notifications and media scanning. Optional: gallery-dl (social/gallery image downloads), Pillow (image-to-PDF), tdl (Telegram), apkeep (APK sources), nano (queue editing). Go 1.25.8+ and git are required only when building the patched tdl resume version.
