@@ -31,7 +31,7 @@ movie_search() {
 
   banner "MOVIE DOWNLOAD THREADS"
   printf " 1) 1 thread (conservative)\n 2) 2 threads\n 3) 4 threads\n 4) 8 threads (faster where supported)\n 0) Cancel\n"
-  ask_choice_default "Choose thread count [default 2]: " threads_choice "1 2 3 4" "2" || return 1
+  ask_choice_default "Choose thread count [default 2]: " threads_choice "1 2 3 4 0" "2" || return 1
   case "$threads_choice" in
     0) info "Movie download cancelled."; return 0 ;;
     1) threads=1 ;;
