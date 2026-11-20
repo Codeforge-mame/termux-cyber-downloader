@@ -11,7 +11,8 @@ document_manager_menu() {
     ask "documents> " choice
     case "$choice" in
       1) document_local_search ;;
-      2) document_local_type_search ;;\n      3) document_download "" ;;
+      2) document_local_type_search ;;
+      3) document_download "" ;;
       0|q|Q) break ;;
       *) warn "Unknown selection." ;;
     esac
