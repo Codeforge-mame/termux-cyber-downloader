@@ -18,9 +18,10 @@ main_menu() {
       "12) Document Manager" \
       "13) 4G network settings" \
       "14) Tool update center" \
+      "15) Learn Regex" \
       " h) Help" \
       " 0) Exit"
-    ask_choice "cyberforge> " choice "1 2 3 4 5 6 7 8 9 10 11 12 13 14 h H 0 q Q" || { break; }
+    ask_choice "cyberforge> " choice "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 h H 0 q Q" || { break; }
     case "$choice" in
       1) video_download "$url" normal ;;
       2) video_download "$url" turbo ;;
@@ -36,6 +37,7 @@ main_menu() {
       12) document_manager_menu ;;
       13) open_4g_network_settings ;;
       14) tools_update_menu ;;
+      15) regex_learning_menu ;;
       h|H) bash "$CD_ROOT/help_script" ;;
       0|q|Q) break ;;
       *) warn "Invalid selection."; continue ;;
