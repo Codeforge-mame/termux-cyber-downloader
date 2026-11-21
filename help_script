@@ -65,10 +65,10 @@ DOCUMENT MANAGER
   a separate confirmation. Move verifies the copied bytes before deleting source.
   Search and inspection do not modify original files.
   Convert supported DOCX, ODT, EPUB, HTML, Markdown, TXT and RTF files.
-  LibreOffice is preferred for DOCX, ODT, RTF and HTML conversions to better
-  preserve page layout, tables, images and embedded objects; Pandoc is the fallback
-  and handles Markdown conversions. Markdown conversions can create a companion
-  *_media folder; keep it beside the Markdown file so extracted images remain linked.
+  LibreOffice is preferred for DOCX, ODT and RTF conversions to office/PDF formats
+  to better preserve page layout, tables, images and embedded objects. Pandoc handles
+  HTML and Markdown exports; HTML embeds images, while Markdown can create a companion
+  *_media folder. Keep that folder beside the Markdown file so extracted images remain linked.
   Selectable-text PDF extraction needs Poppler; image conversion needs ImageMagick.
   Image formats exclude the source format from target choices.
   CSV <-> XLSX conversion uses openpyxl. LibreOffice (libreoffice/soffice), when
