@@ -74,6 +74,11 @@ document_offer_conversion_destination() {
   local converted="$1" choice idx root target_dir target_file base stem ext suffix temp
   local -a removable_paths=() removable_labels=()
   [ -f "$converted" ] || return 1
+  if [[ -d "${converted%.*}_media" ]]; then
+    info "This conversion includes a companion media folder. Keeping the document and its embedded-content assets together in Documents/Converted."
+    scan_media "${converted%/*}"
+    return 0
+  fi
 
   document_search_discover_roots
   local internal_root
@@ -257,8 +262,8 @@ document_selected_file_info() {
 document_manage_matches() {
   local title="$1" choice token start end n idx src dest base ext stem candidate suffix action
   local selection copied moved deleted failed skipped=0 tmpcopy source_real target_real attempt valid allowed
-  local page=0 page_size=10 page_count page_start page_end page_items global_index file_size file_ext
-  local -a visible=() selected=() tokens=() selected_order=()
+  local page=0 page_size=10 page_count page_start page_end global_index file_size file_ext
+  local -a visible=() selected=() tokens=() selected_order=() page_indexes=()
   local -A selected_seen=()
   local total="${#DOC_RESULT_FILES[@]}"
 
@@ -332,30 +337,29 @@ document_manage_matches() {
     fi
     read -r -a tokens <<< "$selection"
     valid=1
-    for ((attempt=1; attempt<=3; attempt++)); do
-      valid=1
-      for token in "${tokens[@]}"; do
-        if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-          start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
-          if (( start < 1 || end < start || end > ${#visible[@]} )); then
-            err "Invalid range: $token. Choose indexes 1-${#visible[@]} (attempt $attempt/3)."
-            valid=0; break
-          fi
-          for ((n=start; n<=end; n++)); do
-            idx=$((page_start + n - 1))
-            if [[ -z "${selected_seen[$idx]+x}" ]]; then selected_order+=("$idx"); selected_seen[$idx]=1; fi
-          done
-        elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
-          idx=$((page_start + token - 1))
-          if [[ -z "${selected_seen[$idx]+x}" ]]; then selected_order+=("$idx"); selected_seen[$idx]=1; fi
-        else
-          err "Invalid selection: $token. Use page indexes 1-${#visible[@]} or ranges (attempt $attempt/3)."
+    page_indexes=()
+    for token in "${tokens[@]}"; do
+      if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+        start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
+        if (( start < 1 || end < start || end > ${#visible[@]} )); then
+          err "Invalid range: $token. Choose indexes 1-${#visible[@]}."
           valid=0; break
         fi
-      done
-      break
+        for ((n=start; n<=end; n++)); do page_indexes+=("$((page_start + n - 1))"); done
+      elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
+        page_indexes+=("$((page_start + token - 1))")
+      else
+        err "Invalid selection: $token. Use page indexes 1-${#visible[@]} or ranges."
+        valid=0; break
+      fi
     done
-    if (( valid == 0 )); then warn "Selection was not changed. Try again."; fi
+    if (( valid == 1 )); then
+      for idx in "${page_indexes[@]}"; do
+        if [[ -z "${selected_seen[$idx]+x}" ]]; then selected_order+=("$idx"); selected_seen[$idx]=1; fi
+      done
+    else
+      warn "Selection was not changed. Try again."
+    fi
   done
 
   for idx in "${selected_order[@]}"; do selected+=("${DOC_RESULT_FILES[$idx]}"); done
