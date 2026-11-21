@@ -77,6 +77,9 @@ pkg install poppler
 # Image format conversion in Document Manager
 pkg install imagemagick
 
+# Metadata cleaning and verification
+pkg install exiftool
+
 # Android notifications and media scanning
 pkg install termux-api -y
 
