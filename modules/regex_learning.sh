@@ -101,14 +101,13 @@ regex_basic_menu() {
   while true; do
     banner "BASIC REGEX LEARNING"
     printf '%s\n' \
-      " 1) Regex symbols and character ranges" \
-      " 2) Common beginner patterns" \
-      " 3) Practice with the regex tester" \
+      " 1) Read the basic regex lesson" \
+      " 2) Practice with the regex tester" \
       " 0) Back"
     ask_choice "Choose: " choice "1 2 0" || return 0
     case "$choice" in
-      1|2) regex_learning_examples BASIC ;;
-      3) regex_learning_playground ;;
+      1) regex_learning_examples BASIC ;;
+      2) regex_learning_playground ;;
       0) return 0 ;;
     esac
   done
@@ -119,15 +118,13 @@ regex_advanced_menu() {
   while true; do
     banner "ADVANCED REGEX LEARNING"
     printf '%s\n' \
-      " 1) Groups and alternation" \
-      " 2) Character classes and negation" \
-      " 3) Quantifiers and practical patterns" \
-      " 4) Practice and inspect capture groups" \
+      " 1) Read the advanced regex lesson" \
+      " 2) Practice and inspect capture groups" \
       " 0) Back"
     ask_choice "Choose: " choice "1 2 0" || return 0
     case "$choice" in
-      1|2|3) regex_learning_examples ADVANCED ;;
-      4) regex_learning_playground ;;
+      1) regex_learning_examples ADVANCED ;;
+      2) regex_learning_playground ;;
       0) return 0 ;;
     esac
   done
