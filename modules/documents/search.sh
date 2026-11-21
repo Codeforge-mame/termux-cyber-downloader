@@ -266,7 +266,6 @@ DOC_SCAN_DONE=0
 declare -A DOC_SCAN_SEEN=()
 
 document_scan_start() {
-  local producer="$1"
   local scan_dir
   scan_dir="$(mktemp -d "${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/cyberforge-scan.XXXXXX" 2>/dev/null)" || {
     err "Could not create scanner workspace."
@@ -456,10 +455,16 @@ document_manage_matches() {
   done
 
   for idx in "${selected_order[@]}"; do selected+=("${DOC_RESULT_FILES[$idx]}"); done
+  document_scan_cleanup
   (( ${#selected[@]} > 0 )) || { warn "No files selected."; return 0; }
   banner "SELECTED FILES"
   printf 'Selected %s file(s):\n' "${#selected[@]}"
-  for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
+  document_search_discover_roots
+  idx=0
+  for src in "${selected[@]}"; do
+    ((idx += 1))
+    printf ' %s) %s\n    Storage: %s\n    Path: %s\n' "$idx" "${src##*/}" "$(document_storage_label_for_path "$src")" "$src"
+  done
   printf '\n'
   local can_convert=0 can_clean=0 can_verify=0
   for src in "${selected[@]}"; do
@@ -792,7 +797,7 @@ document_local_type_search() {
     find_args=()
     for ext in "${extensions[@]}"; do find_args+=( -iname "*.$ext" -o ); done
     unset "find_args[$((${#find_args[@]} - 1))]"
-    find "${DOC_SELECTED_ROOTS[@]}" -type f \\( "${find_args[@]}" \\) -print0 2>/dev/null
+    find "${DOC_SELECTED_ROOTS[@]}" -type f '(' "${find_args[@]}" ')' -print0 2>/dev/null
   ) > "$DOC_SCAN_FIFO" &
   DOC_SCAN_PID=$!
   document_scan_attach
