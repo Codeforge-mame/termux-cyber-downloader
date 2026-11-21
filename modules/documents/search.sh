@@ -1313,7 +1313,7 @@ document_convert_file() {
   # tables, images, page layout, and embedded objects better than plain-text
   # intermediate conversions. Pandoc remains the fallback and Markdown route.
   case "$ext" in docx|odt|rtf|html|htm)
-    if [[ -n "$office_cmd" && "$target" != "markdown" ]]; then use_office=1; fi ;;
+    if [[ -n "$office_cmd" && "$target" != "markdown" && "$target" != "html" ]]; then use_office=1; fi ;;
   esac
 
   if [[ "$target" == "pdf" && "$use_office" == "0" ]]; then
@@ -1393,6 +1393,9 @@ document_convert_file() {
       elif [[ "$target" == "markdown" ]]; then
         # Keep images/media as sidecar assets rather than silently dropping them.
         pandoc -f "$from" --resource-path="$resource_dir" --extract-media="${output%.*}_media" -t "$target" -o "$output" "$src"; rc=$?
+      elif [[ "$target" == "html" ]]; then
+        # Embed images in the HTML so a single-file conversion remains portable.
+        pandoc -f "$from" --resource-path="$resource_dir" --embed-resources -t "$target" -o "$output" "$src"; rc=$?
       else
         pandoc -f "$from" --resource-path="$resource_dir" -t "$target" -o "$output" "$src"; rc=$?
       fi
