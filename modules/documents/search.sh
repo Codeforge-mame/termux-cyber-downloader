@@ -321,7 +321,7 @@ document_manage_matches() {
         done
         info "Selected all files on this page."
         continue ;;
-      j *|J *)
+      j\ *|J\ *)
         token="${selection#?}"; token="${token//[[:space:]]/}"
         if [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= page_count )); then
           page=$((token - 1))
