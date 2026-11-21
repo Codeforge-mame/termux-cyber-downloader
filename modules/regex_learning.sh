@@ -105,7 +105,7 @@ regex_basic_menu() {
       " 2) Common beginner patterns" \
       " 3) Practice with the regex tester" \
       " 0) Back"
-    ask_choice "Choose: " choice "1 2 3 0" || return 0
+    ask_choice "Choose: " choice "1 2 0" || return 0
     case "$choice" in
       1|2) regex_learning_examples BASIC ;;
       3) regex_learning_playground ;;
@@ -124,7 +124,7 @@ regex_advanced_menu() {
       " 3) Quantifiers and practical patterns" \
       " 4) Practice and inspect capture groups" \
       " 0) Back"
-    ask_choice "Choose: " choice "1 2 3 4 0" || return 0
+    ask_choice "Choose: " choice "1 2 0" || return 0
     case "$choice" in
       1|2|3) regex_learning_examples ADVANCED ;;
       4) regex_learning_playground ;;
