@@ -694,6 +694,12 @@ document_convert_image_file() {
   ask_choice "Convert image ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
+  if [[ "$ext" == "xlsx" && "$target" == "csv" ]]; then
+    warn "CSV can contain only one worksheet and does not preserve workbook formatting, charts, or multiple sheets."
+    info "Formula expressions are exported as text; CSV cannot calculate workbook formulas."
+  elif [[ "$ext" == "csv" && "$target" == "xlsx" ]]; then
+    info "CSV data will be placed in one worksheet. Original formatting and formulas are not present in a CSV source."
+  fi
 
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create the Converted folder: $output_dir"; return 1; }
@@ -1007,6 +1013,11 @@ document_convert_spreadsheet_file() {
   ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
+  if [[ "$target" == "txt" ]]; then
+    warn "PPTX-to-TXT extracts slide text only. Images, layout, animations, speaker notes, and formatting are not preserved."
+  else
+    info "Presentation conversion may change fonts, spacing, animations, and layout depending on LibreOffice compatibility."
+  fi
 
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
@@ -1071,7 +1082,7 @@ PY
 import csv, sys
 from openpyxl import load_workbook
 source, destination, sheet_name = sys.argv[1:4]
-book = load_workbook(source, read_only=True, data_only=True)
+book = load_workbook(source, read_only=True, data_only=False)
 sheet = book[sheet_name]
 with open(destination, "w", encoding="utf-8-sig", newline="") as handle:
     writer = csv.writer(handle)
@@ -1108,11 +1119,10 @@ document_convert_presentation_file() {
     for target in pptx odp ppt pdf; do
       [[ "$target" == "$ext" ]] || targets+=("$target")
     done
-  elif [[ "$ext" == "pptx" ]] && command -v python >/dev/null 2>&1 &&
-       python -c 'import pptx' >/dev/null 2>&1; then
+  elif [[ "$ext" == "pptx" ]] && command -v python >/dev/null 2>&1; then
     targets=(txt)
   else
-    warn "Presentation conversion needs LibreOffice. PPTX-to-TXT also works with: python -m pip install python-pptx"
+    warn "Presentation conversion needs LibreOffice. PPTX-to-TXT uses Python's built-in ZIP/XML support."
     return 1
   fi
 
