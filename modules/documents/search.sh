@@ -257,6 +257,78 @@ document_selected_file_info() {
 }
 
 
+# Progressive scanner state. Results are read in batches of ten from a
+# background find process. Duplicate paths are discarded before they reach a page.
+DOC_SCAN_FIFO=""
+DOC_SCAN_PID=""
+DOC_SCAN_FD=""
+DOC_SCAN_DONE=0
+declare -A DOC_SCAN_SEEN=()
+
+document_scan_start() {
+  local producer="$1"
+  local scan_dir
+  scan_dir="$(mktemp -d "${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/cyberforge-scan.XXXXXX" 2>/dev/null)" || {
+    err "Could not create scanner workspace."
+    return 1
+  }
+  DOC_SCAN_FIFO="$scan_dir/results"
+  mkfifo "$DOC_SCAN_FIFO" || { rm -rf "$scan_dir"; err "Could not start scanner."; return 1; }
+  DOC_SCAN_DONE=0
+  DOC_SCAN_SEEN=()
+  DOC_RESULT_FILES=()
+  # The producer string is never evaluated. Callers launch their own safe
+  # subshell pipeline and redirect its NUL-delimited output to this FIFO.
+  exec {DOC_SCAN_FD}<"$DOC_SCAN_FIFO"
+}
+
+document_scan_load_next_page() {
+  local path added=0
+  (( DOC_SCAN_DONE == 0 )) || return 1
+  while (( added < 10 )); do
+    path=""
+    if IFS= read -r -d '' -u "$DOC_SCAN_FD" path; then
+      [[ -n "$path" ]] || continue
+      if [[ -z "${DOC_SCAN_SEEN["$path"]+x}" ]]; then
+        DOC_SCAN_SEEN["$path"]=1
+        DOC_RESULT_FILES+=("$path")
+        ((added += 1))
+      fi
+    else
+      DOC_SCAN_DONE=1
+      break
+    fi
+  done
+  if (( DOC_SCAN_DONE == 1 )); then
+    exec {DOC_SCAN_FD}<&-
+    [[ -n "$DOC_SCAN_PID" ]] && wait "$DOC_SCAN_PID" 2>/dev/null
+    [[ -n "$DOC_SCAN_FIFO" ]] && rm -rf "${DOC_SCAN_FIFO%/*}" 2>/dev/null
+    DOC_SCAN_FIFO=""
+    DOC_SCAN_PID=""
+    DOC_SCAN_FD=""
+  fi
+  (( added > 0 ))
+}
+
+document_scan_cleanup() {
+  if [[ -n "$DOC_SCAN_FD" ]]; then exec {DOC_SCAN_FD}<&-; fi
+  if [[ -n "$DOC_SCAN_PID" ]]; then kill "$DOC_SCAN_PID" 2>/dev/null || true; wait "$DOC_SCAN_PID" 2>/dev/null || true; fi
+  [[ -n "$DOC_SCAN_FIFO" ]] && rm -rf "${DOC_SCAN_FIFO%/*}" 2>/dev/null
+  DOC_SCAN_FIFO=""; DOC_SCAN_PID=""; DOC_SCAN_FD=""; DOC_SCAN_DONE=1
+}
+
+document_storage_label_for_path() {
+  local path="$1" i root best=-1 best_len=0
+  for i in "${!DOC_SEARCH_PATHS[@]}"; do
+    root="${DOC_SEARCH_PATHS[$i]%/}"
+    if [[ "$path" == "$root" || "$path" == "$root/"* ]]; then
+      if (( ${#root} > best_len )); then best="$i"; best_len="${#root}"; fi
+    fi
+  done
+  if (( best >= 0 )); then printf '%s' "${DOC_SEARCH_LABELS[$best]}"
+  else printf 'Detected storage (source unknown)'; fi
+}
+
 # Shared numbered-result manager. Search itself remains read-only; changes happen
 # only after the user explicitly selects files and confirms an operation.
 document_manage_matches() {
@@ -265,21 +337,26 @@ document_manage_matches() {
   local page=0 page_size=10 page_count page_start page_end global_index file_size file_ext
   local -a visible=() selected=() tokens=() selected_order=() page_indexes=()
   local -A selected_seen=()
-  local total="${#DOC_RESULT_FILES[@]}"
+  local total=0
 
-  (( total > 0 )) || { warn "No matching files were found."; return 0; }
-  page_count=$(((total + page_size - 1) / page_size))
+  document_scan_load_next_page || {
+    document_scan_cleanup
+    warn "No matching files were found in the selected accessible locations."
+    return 0
+  }
   banner "$title"
-  printf 'Found %s matching file(s). Showing 10 per page.\n' "$total"
+  printf 'Scanner is loading 10 results at a time. Press n to scan the next batch.\n'
 
-  # Browse results page by page. Selections accumulate across pages until Done.
+  # Browse loaded results. Pressing n on the last loaded page advances the scan.
   while true; do
+    total="${#DOC_RESULT_FILES[@]}"
+    page_count=$(((total + page_size - 1) / page_size))
     page_start=$((page * page_size))
     page_end=$((page_start + page_size))
     (( page_end > total )) && page_end="$total"
     visible=()
-    printf '\nRESULTS PAGE %s/%s | Files %s-%s of %s | Selected: %s\n' \
-      "$((page + 1))" "$page_count" "$((page_start + 1))" "$page_end" "$total" "${#selected_order[@]}"
+    printf '\nRESULTS PAGE %s/%s | Loaded %s file(s)%s | Selected: %s\n' \
+      "$((page + 1))" "$page_count" "$total" "$([[ "$DOC_SCAN_DONE" == "1" ]] && printf '(scan complete)' || printf '(more available)')" "${#selected_order[@]}"
     printf '%s\n' '------------------------------------------------------------'
     for ((global_index=page_start; global_index<page_end; global_index++)); do
       src="${DOC_RESULT_FILES[$global_index]}"
@@ -298,16 +375,29 @@ document_manage_matches() {
     ask "Selection / page command: " selection
     selection="${selection//,/ }"
     case "$selection" in
-      q|Q|0) return 0 ;;
+      q|Q|0) document_scan_cleanup; return 0 ;;
       d|D|done|DONE) break ;;
       n|N|next|NEXT)
-        if (( page + 1 < page_count )); then ((page += 1)); else warn "Already on the last page."; fi
+        if (( page + 1 < page_count )); then
+          ((page += 1))
+        elif (( DOC_SCAN_DONE == 0 )); then
+          if document_scan_load_next_page; then
+            ((page += 1))
+          else
+            warn "Scan complete. No more matching files."
+          fi
+        else
+          warn "Scan complete. There are no more results."
+        fi
         continue ;;
       p|P|prev|PREV|previous|PREVIOUS)
         if (( page > 0 )); then ((page -= 1)); else warn "Already on the first page."; fi
         continue ;;
       f|F|first|FIRST) page=0; continue ;;
-      l|L|last|LAST) page=$((page_count - 1)); continue ;;
+      l|L|last|LAST)
+        while (( DOC_SCAN_DONE == 0 )); do document_scan_load_next_page || break; done
+        total="${#DOC_RESULT_FILES[@]}"; page_count=$(((total + page_size - 1) / page_size))
+        page=$((page_count - 1)); continue ;;
       c|C|clear|CLEAR)
         selected_order=(); selected_seen=()
         info "Selection cleared."
@@ -609,25 +699,14 @@ document_local_search() {
       ;;
   esac
 
-  tmp="$(mktemp 2>/dev/null)" || { err "Could not create a temporary search file."; return 1; }
+  document_scan_start "filename" || return 1
   info "Searching filenames for: $keyword"
-  for index in "${!roots[@]}"; do
-    info "Scanning: ${labels[$index]}"
-    find "${roots[$index]}" -type f -iname "*$keyword*" -print0 2>/dev/null >> "$tmp"
-  done
-
-  while IFS= read -r -d '' selected; do
-    matches+=("$selected")
-  done < "$tmp"
-  rm -f "$tmp"
-
-  count="${#matches[@]}"
-  if (( count == 0 )); then
-    warn "No matching filenames were found in the selected accessible locations."
-    info "Storage Android does not expose to Termux cannot be searched by this scanner."
-    return 0
-  fi
-  DOC_RESULT_FILES=("${matches[@]}")
+  (
+    for index in "${!roots[@]}"; do
+      find "${roots[$index]}" -type f -iname "*$keyword*" -print0 2>/dev/null
+    done
+  ) > "$DOC_SCAN_FIFO" &
+  DOC_SCAN_PID=$!
   document_manage_matches "FILENAME SEARCH RESULTS"
 }
 
@@ -662,10 +741,7 @@ document_search_choose_roots() {
   esac
 }
 document_search_show_matches() {
-  local tmp="$1" title="$2" selected
-  DOC_RESULT_FILES=()
-  while IFS= read -r -d '' selected; do DOC_RESULT_FILES+=("$selected"); done < "$tmp"
-  rm -f "$tmp"
+  local title="$1"
   document_manage_matches "$title"
 }
 
@@ -706,14 +782,16 @@ document_local_type_search() {
   esac
 
   document_search_choose_roots || return 0
-  tmp="$(mktemp 2>/dev/null)" || { err "Could not create a temporary search file."; return 1; }
+  document_scan_start "file type" || return 1
   info "Searching selected storage by extension..."
-  for index in "${!DOC_SELECTED_ROOTS[@]}"; do
-    for ext in "${extensions[@]}"; do
-      find "${DOC_SELECTED_ROOTS[$index]}" -type f -iname "*.$ext" -print0 2>/dev/null >> "$tmp"
-    done
-  done
-  document_search_show_matches "$tmp" "FILE TYPE RESULTS"
+  (
+    find_args=()
+    for ext in "${extensions[@]}"; do find_args+=( -iname "*.$ext" -o ); done
+    unset 'find_args[${#find_args[@]}-1]'
+    find "${DOC_SELECTED_ROOTS[@]}" -type f \\( "${find_args[@]}" \\) -print0 2>/dev/null
+  ) > "$DOC_SCAN_FIFO" &
+  DOC_SCAN_PID=$!
+  document_search_show_matches "FILE TYPE RESULTS"
 }
 
 
