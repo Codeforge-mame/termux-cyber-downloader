@@ -55,7 +55,8 @@ DOCUMENT MANAGER
   Storage locations are checked and labelled read/write or read only.
   Select multiple results with indexes (1 35 74), commas, or ranges (1-5).
   Choose Copy, Move, Delete, Read/Open, or Convert when supported files are selected. Delete requires typing DELETE to confirm.
-  Remove private metadata creates a separate sanitized copy in Documents/PrivacyCleaned; the original is never changed. Supported: common images, PDF, DOCX, XLSX, PPTX, ODT and EPUB. PDF needs ExifTool; images use ExifTool or ImageMagick. This removes embedded metadata, not personal details visible in the file content.
+  Remove private metadata creates a separate copy in Documents/PrivacyCleaned; the original is never changed. Supported: common images, PDF, DOCX, XLSX, PPTX, ODT and EPUB. PDF needs ExifTool; images use ExifTool or ImageMagick.
+  Choose Check metadata to inspect selected supported files for common privacy-sensitive tags. ExifTool is required: pkg install exiftool. CyberForge also checks a cleaned copy automatically when ExifTool is installed. A clean result is not a guarantee that every vendor-specific tag or visible personal detail is gone.
   Copy/move supports destination folders on storage locations Termux can access.
   Name collisions can be skipped, auto-renamed to keep both, or replaced after
   a separate confirmation. Move verifies the copied bytes before deleting source.
@@ -65,7 +66,8 @@ DOCUMENT MANAGER
   ImageMagick. Image formats exclude the source format from target choices.
   CSV <-> XLSX conversion uses openpyxl. LibreOffice (libreoffice/soffice), when
   installed, enables XLS/XLSX/ODS spreadsheet and PPT/PPTX/ODP/PDF conversions.
-  Without LibreOffice, PPTX slide text can be exported to TXT using Python's built-in ZIP/XML libraries (no python-pptx or lxml required).
+  Without LibreOffice, PPTX slide text can be exported to TXT using Python's built-in ZIP/XML libraries (no python-pptx or lxml required). This extracts slide text only, not layout, images, animations, or notes.
+  XLSX-to-CSV exports one selected worksheet and formula expressions; CSV cannot preserve workbook formatting, charts, or multiple sheets.
   Images can also be converted to PDF. Document-to-PDF needs Pandoc plus a PDF
   engine such as Tectonic, XeLaTeX, LuaLaTeX, or WeasyPrint. Scanned PDFs are
   not OCR'd.
