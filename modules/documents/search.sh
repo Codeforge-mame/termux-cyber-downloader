@@ -1300,6 +1300,14 @@ document_convert_file() {
   ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
+  if { [[ "$target" == "markdown" ]] || { [[ "$ext" == "pdf" ]] && [[ "$target" != "txt" ]]; }; } &&
+     ! command -v pandoc >/dev/null 2>&1; then
+    warn "This conversion needs Pandoc: pkg install pandoc"
+    return 1
+  fi
+  if [[ "$ext" == "pdf" && "$target" != "txt" ]]; then
+    warn "PDF text conversion extracts selectable text only. Images, layout, and scanned pages are not preserved; OCR is not included."
+  fi
 
   # Prefer LibreOffice for layout-rich office documents. It generally keeps
   # tables, images, page layout, and embedded objects better than plain-text
