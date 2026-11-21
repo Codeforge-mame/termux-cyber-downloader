@@ -277,8 +277,11 @@ document_scan_start() {
   DOC_SCAN_DONE=0
   DOC_SCAN_SEEN=()
   DOC_RESULT_FILES=()
-  # The producer string is never evaluated. Callers launch their own safe
-  # subshell pipeline and redirect its NUL-delimited output to this FIFO.
+  # Callers start the producer first, then attach the reader so FIFO opening
+  # cannot block before a writer exists.
+}
+
+document_scan_attach() {
   exec {DOC_SCAN_FD}<"$DOC_SCAN_FIFO"
 }
 
@@ -707,6 +710,7 @@ document_local_search() {
     done
   ) > "$DOC_SCAN_FIFO" &
   DOC_SCAN_PID=$!
+  document_scan_attach
   document_manage_matches "FILENAME SEARCH RESULTS"
 }
 
@@ -787,10 +791,11 @@ document_local_type_search() {
   (
     find_args=()
     for ext in "${extensions[@]}"; do find_args+=( -iname "*.$ext" -o ); done
-    unset 'find_args[${#find_args[@]}-1]'
+    unset "find_args[$((${#find_args[@]} - 1))]"
     find "${DOC_SELECTED_ROOTS[@]}" -type f \\( "${find_args[@]}" \\) -print0 2>/dev/null
   ) > "$DOC_SCAN_FIFO" &
   DOC_SCAN_PID=$!
+  document_scan_attach
   document_search_show_matches "FILE TYPE RESULTS"
 }
 
