@@ -310,10 +310,10 @@ document_manage_matches() {
   printf 'Selected %s file(s):\n' "${#selected[@]}"
   for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
   printf '\n'
-  local can_convert=0 can_clean=0
+  local can_convert=0 can_clean=0 can_verify=0
   for src in "${selected[@]}"; do
     if document_file_is_convertible "$src"; then can_convert=1; fi
-    if document_file_metadata_supported "$src"; then can_clean=1; fi
+    if document_file_metadata_supported "$src"; then can_clean=1; can_verify=1; fi
   done
   local operation_choices="1 2 3 0"
   printf '%s\n' " 1) Copy" " 2) Move" " 3) Delete"
@@ -328,6 +328,10 @@ document_manage_matches() {
   if (( can_clean )); then
     printf '%s\n' " 6) Remove private metadata (create clean copies)"
     operation_choices="$operation_choices 6"
+  fi
+  if (( can_verify )); then
+    printf '%s\n' " 7) Check metadata (verify privacy-sensitive fields)"
+    operation_choices="$operation_choices 7"
   fi
   printf '%s\n' " 0) Cancel"
   ask_choice "Choose operation: " action "$operation_choices" || return 1
@@ -361,6 +365,25 @@ document_manage_matches() {
         fi
       done
       printf '\nMetadata cleaning summary: %s created, %s skipped/failed.\n' "$clean_count" "$clean_failed"
+      ;;
+    7)
+      local verify_clean=0 verify_remaining=0 verify_failed=0 verify_rc
+      for src in "${selected[@]}"; do
+        printf '\nChecking: %s\n' "${src##*/}"
+        if ! document_file_metadata_supported "$src"; then
+          warn "Unsupported metadata format: ${src##*/}"
+          ((verify_failed += 1))
+          continue
+        fi
+        document_verify_private_metadata "$src"
+        verify_rc=$?
+        case "$verify_rc" in
+          0) ((verify_clean += 1)) ;;
+          2) ((verify_remaining += 1)) ;;
+          *) ((verify_failed += 1)) ;;
+        esac
+      done
+      printf '\nMetadata check summary: %s with no common private tags, %s with potential private tags, %s not checked.\n' "$verify_clean" "$verify_remaining" "$verify_failed"
       ;;
     3)
       printf '\n'
@@ -790,6 +813,63 @@ document_file_metadata_supported() {
   case "$ext" in jpg|jpeg|png|webp|bmp|gif|tif|tiff|pdf|docx|xlsx|pptx|odt|epub) return 0 ;; *) return 1 ;; esac
 }
 
+# Inspect common privacy-sensitive metadata tags. This is a practical check,
+# not a guarantee that every possible vendor-specific tag has been removed.
+document_verify_private_metadata() {
+  local src="$1" metadata
+  [[ -f "$src" && -r "$src" ]] || { err "Selected file is not readable."; return 1; }
+  document_file_metadata_supported "$src" || { warn "Metadata verification is not supported for this file type."; return 1; }
+  command -v exiftool >/dev/null 2>&1 || {
+    warn "Metadata verification requires ExifTool: pkg install exiftool"
+    return 1
+  }
+  metadata="$(exiftool -j -G1 -a -s "$src" 2>/dev/null)" || {
+    err "ExifTool could not inspect this file."
+    return 1
+  }
+  EXIFTOOL_METADATA="$metadata" python - <<'PY'
+import json, os, re, sys
+try:
+    records = json.loads(os.environ["EXIFTOOL_METADATA"])
+    tags = records[0] if records else {}
+except Exception as exc:
+    print(f"Could not parse metadata inspection: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+sensitive = {
+    "author", "creator", "lastmodifiedby", "manager", "company",
+    "ownername", "artist", "copyright", "description", "comment",
+    "usercomment", "gps", "serialnumber", "cameraownername",
+    "documentid", "instanceid", "publisher", "rights", "contributor",
+    "datetimeoriginal", "createdate", "modifydate", "metadatadate",
+    "contentcreatedate", "hostcomputer", "software", "creatortool",
+}
+ignored = {
+    "sourcefile", "filename", "directory", "filesize", "filetype",
+    "filetypeextension", "mimetype", "filemodifydate", "fileaccessdate",
+    "fileinodechangedate", "filepermissions", "imagewidth", "imageheight",
+    "imagesize", "megapixels", "bitspersample", "colorspace",
+    "compression", "encodingprocess", "exifbyteorder",
+}
+ignore = {re.sub(r"[^a-z0-9]", "", x) for x in ignored}
+found = []
+for key, value in tags.items():
+    name = re.sub(r"[^a-z0-9]", "", key.rsplit(":", 1)[-1].lower())
+    if name in ignore:
+        continue
+    if any(token in name for token in sensitive) and value not in (None, "", [], {}):
+        found.append(key)
+if found:
+    print("POTENTIAL PRIVATE METADATA REMAINS:")
+    for item in sorted(set(found)):
+        print(f" - {item}")
+    print("Review these fields before sharing the file.")
+    sys.exit(2)
+print("No common privacy-sensitive metadata tags were detected.")
+print("Technical or vendor-specific metadata may still remain.")
+PY
+}
+
 document_remove_private_metadata() {
   local src="$1" ext output_dir filename output suffix rc=1 probe
   [[ -f "$src" && -r "$src" ]] || { err "Selected file is not readable: $src"; return 1; }
@@ -855,9 +935,20 @@ PY
       else warn "Image metadata cleaning needs ExifTool or ImageMagick."; fi ;;
   esac
 
-  if (( rc == 0 )) && document_validate_converted_output "$output" "$target"; then
+  if (( rc == 0 )) && document_validate_converted_output "$output" "$ext"; then
     info "A metadata-cleaned copy was created. The original file was not changed."
     ok "Sanitized copy: $output"
+    if command -v exiftool >/dev/null 2>&1; then
+      printf '\nPOST-CLEANING METADATA CHECK\n'
+      document_verify_private_metadata "$output"
+      case "$?" in
+        0) ok "Metadata check passed for common privacy-sensitive fields." ;;
+        2) warn "The copy was created, but some privacy-sensitive metadata remains." ;;
+        *) warn "The copy was created, but independent metadata verification was unavailable." ;;
+      esac
+    else
+      warn "Copy created, but independent verification was not run. Install ExifTool to verify it."
+    fi
     if command -v termux-media-scan >/dev/null 2>&1; then termux-media-scan "$output" >/dev/null 2>&1 || true; fi
     return 0
   fi
