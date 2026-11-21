@@ -1259,6 +1259,7 @@ PY
 
 document_convert_file() {
   local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir pdf_engine candidate idx allowed="0"
+  local office_cmd="" use_office=0 generated
   local -a targets=()
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
   document_file_is_convertible "$src" || { warn "Conversion is not supported for: $src"; return 1; }
@@ -1274,7 +1275,13 @@ document_convert_file() {
     printf '\nAVAILABLE OUTPUT FORMATS\n'
     for idx in "${!targets[@]}"; do printf ' %s) %s\n' "$((idx + 1))" "${targets[$idx]^^}"; allowed+=" $((idx + 1))"; done
   else
-    command -v pandoc >/dev/null 2>&1 || { warn "Install Pandoc: pkg install pandoc"; return 1; }
+    if command -v libreoffice >/dev/null 2>&1; then office_cmd="libreoffice"
+    elif command -v soffice >/dev/null 2>&1; then office_cmd="soffice"
+    fi
+    if [[ -z "$office_cmd" ]] && ! command -v pandoc >/dev/null 2>&1; then
+      warn "Install Pandoc or LibreOffice: pkg install pandoc"
+      return 1
+    fi
     for target in docx odt epub html markdown rtf pdf; do
       case "$ext:$target" in
         docx:docx|odt:odt|epub:epub|html:html|htm:html|md:markdown|rtf:rtf) continue ;;
@@ -1290,14 +1297,21 @@ document_convert_file() {
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
 
-  if [[ "$target" == "pdf" ]]; then
+  # Prefer LibreOffice for layout-rich office documents. It generally keeps
+  # tables, images, page layout, and embedded objects better than plain-text
+  # intermediate conversions. Pandoc remains the fallback and Markdown route.
+  case "$ext" in docx|odt|rtf|html|htm)
+    if [[ -n "$office_cmd" && "$target" != "markdown" ]]; then use_office=1; fi ;;
+  esac
+
+  if [[ "$target" == "pdf" && "$use_office" == "0" ]]; then
     pdf_engine=""
     for candidate in tectonic xelatex lualatex pdflatex weasyprint wkhtmltopdf typst; do
       if command -v "$candidate" >/dev/null 2>&1; then pdf_engine="$candidate"; break; fi
     done
     if [[ -z "$pdf_engine" ]]; then
-      warn "PDF output needs a Pandoc PDF engine (for example Tectonic, XeLaTeX, or WeasyPrint)."
-      info "Install and configure a supported PDF engine, then retry. The source file is unchanged."
+      warn "PDF output needs LibreOffice or a Pandoc PDF engine (Tectonic, XeLaTeX, or WeasyPrint)."
+      info "Install LibreOffice or configure a supported PDF engine. The source file is unchanged."
       return 1
     fi
   fi
@@ -1327,14 +1341,43 @@ document_convert_file() {
     fi
     rm -f "$tmp"
   else
-    case "$ext" in
-      docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;;
-      html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;;
-    esac
-    if [[ "$target" == "pdf" ]]; then
-      pandoc -f "$from" --pdf-engine="$pdf_engine" -o "$output" "$src"; rc=$?
-    else
-      pandoc -f "$from" -t "$target" -o "$output" "$src"; rc=$?
+    if (( use_office == 1 )); then
+      local office_tmp
+      office_tmp="$(mktemp -d "$output_dir/.cyberforge-office.XXXXXX" 2>/dev/null)" || {
+        err "Could not create a temporary LibreOffice workspace."
+        return 1
+      }
+      if "$office_cmd" --headless --convert-to "$target" --outdir "$office_tmp" "$src" >/dev/null 2>&1; then
+        generated="$office_tmp/$filename.$target"
+        if [[ -s "$generated" ]] && mv -- "$generated" "$output"; then
+          rc=0
+        fi
+      fi
+      rm -rf -- "$office_tmp"
+      if (( rc != 0 )); then
+        warn "LibreOffice could not convert this file. Trying Pandoc fallback if available."
+      fi
+    fi
+    if (( rc != 0 )); then
+      command -v pandoc >/dev/null 2>&1 || {
+        err "LibreOffice conversion failed and Pandoc is not installed."
+        return 1
+      }
+      case "$ext" in
+        docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;;
+        html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;;
+      esac
+      local resource_dir
+      resource_dir="${src%/*}"
+      [[ "$resource_dir" == "$src" ]] && resource_dir="."
+      if [[ "$target" == "pdf" ]]; then
+        pandoc -f "$from" --resource-path="$resource_dir" --pdf-engine="$pdf_engine" -o "$output" "$src"; rc=$?
+      elif [[ "$target" == "markdown" ]]; then
+        # Keep images/media as sidecar assets rather than silently dropping them.
+        pandoc -f "$from" --resource-path="$resource_dir" --extract-media="${output%.*}_media" -t "$target" -o "$output" "$src"; rc=$?
+      else
+        pandoc -f "$from" --resource-path="$resource_dir" -t "$target" -o "$output" "$src"; rc=$?
+      fi
     fi
   fi
 
