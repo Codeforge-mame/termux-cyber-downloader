@@ -1262,7 +1262,7 @@ PY
 }
 
 document_convert_file() {
-  local src="$1" choice ext target from output stem suffix tmp rc output_dir filename probe tmpdir pdf_engine candidate idx allowed="0"
+  local src="$1" choice ext target from output stem suffix tmp rc=1 output_dir filename probe tmpdir pdf_engine candidate idx allowed="0"
   local office_cmd="" use_office=0 generated
   local -a targets=()
   [ -f "$src" ] && [ -r "$src" ] || { err "Selected file is not readable: $src"; return 1; }
@@ -1375,6 +1375,12 @@ document_convert_file() {
         err "LibreOffice conversion failed and Pandoc is not installed."
         return 1
       }
+      if [[ "$target" == "pdf" && -z "$pdf_engine" ]]; then
+        for candidate in tectonic xelatex lualatex pdflatex weasyprint wkhtmltopdf typst; do
+          if command -v "$candidate" >/dev/null 2>&1; then pdf_engine="$candidate"; break; fi
+        done
+        [[ -n "$pdf_engine" ]] || { err "LibreOffice failed and no Pandoc PDF engine is installed."; return 1; }
+      fi
       case "$ext" in
         docx) from="docx" ;; odt) from="odt" ;; epub) from="epub" ;;
         html|htm) from="html" ;; md) from="markdown" ;; txt) from="plain" ;; rtf) from="rtf" ;;
