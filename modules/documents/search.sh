@@ -842,6 +842,9 @@ sensitive = {
     "documentid", "instanceid", "publisher", "rights", "contributor",
     "datetimeoriginal", "createdate", "modifydate", "metadatadate",
     "contentcreatedate", "hostcomputer", "software", "creatortool",
+    "make", "model", "lensmodel", "cameramodel", "deviceid",
+    "devicemodel", "location", "city", "state", "country", "address",
+    "email", "phonenumber", "title", "subject", "keywords", "category",
 }
 ignored = {
     "sourcefile", "filename", "directory", "filesize", "filetype",
