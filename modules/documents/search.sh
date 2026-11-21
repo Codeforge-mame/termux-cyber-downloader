@@ -1068,6 +1068,12 @@ document_convert_spreadsheet_file() {
   ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
+  # Prefer openpyxl for XLSX-to-CSV so users can choose the worksheet and
+  # retain formula expressions in the CSV export; LibreOffice remains fallback.
+  if [[ "$ext" == "xlsx" && "$target" == "csv" && -n "$office_cmd" ]] &&
+     python -c 'import openpyxl' >/dev/null 2>&1; then
+    office_cmd=""
+  fi
   if [[ "$ext" == "xlsx" && "$target" == "csv" ]]; then
     warn "CSV can contain only one worksheet and does not preserve workbook formatting, charts, or multiple sheets."
     info "Formula expressions are exported as text; CSV cannot calculate workbook formulas."
