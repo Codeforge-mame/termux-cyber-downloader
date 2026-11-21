@@ -694,13 +694,6 @@ document_convert_image_file() {
   ask_choice "Convert image ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
-  if [[ "$ext" == "xlsx" && "$target" == "csv" ]]; then
-    warn "CSV can contain only one worksheet and does not preserve workbook formatting, charts, or multiple sheets."
-    info "Formula expressions are exported as text; CSV cannot calculate workbook formulas."
-  elif [[ "$ext" == "csv" && "$target" == "xlsx" ]]; then
-    info "CSV data will be placed in one worksheet. Original formatting and formulas are not present in a CSV source."
-  fi
-
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create the Converted folder: $output_dir"; return 1; }
   probe="$(mktemp "$output_dir/.cyberforge-image.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable: $output_dir"; return 1; }
@@ -1013,12 +1006,12 @@ document_convert_spreadsheet_file() {
   ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
-  if [[ "$target" == "txt" ]]; then
-    warn "PPTX-to-TXT extracts slide text only. Images, layout, animations, speaker notes, and formatting are not preserved."
-  else
-    info "Presentation conversion may change fonts, spacing, animations, and layout depending on LibreOffice compatibility."
+  if [[ "$ext" == "xlsx" && "$target" == "csv" ]]; then
+    warn "CSV can contain only one worksheet and does not preserve workbook formatting, charts, or multiple sheets."
+    info "Formula expressions are exported as text; CSV cannot calculate workbook formulas."
+  elif [[ "$ext" == "csv" && "$target" == "xlsx" ]]; then
+    info "CSV data will be placed in one worksheet. Original formatting and formulas are not present in a CSV source."
   fi
-
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
   probe="$(mktemp "$output_dir/.cyberforge-sheet.XXXXXX" 2>/dev/null)" || { err "Converted folder is not writable."; return 1; }
@@ -1134,6 +1127,11 @@ document_convert_presentation_file() {
   ask_choice "Convert ${src##*/} to: " choice "$allowed" || return 1
   [[ "$choice" == "0" ]] && return 0
   target="${targets[$((choice - 1))]}"
+  if [[ "$target" == "txt" ]]; then
+    warn "PPTX-to-TXT extracts slide text only. Images, layout, animations, speaker notes, and formatting are not preserved."
+  else
+    info "Presentation conversion may change fonts, spacing, animations, and layout depending on LibreOffice compatibility."
+  fi
 
   output_dir="$DOC_DIR/Converted"
   mkdir -p -- "$output_dir" 2>/dev/null || { err "Cannot create Converted folder."; return 1; }
