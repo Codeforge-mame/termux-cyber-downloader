@@ -17,6 +17,13 @@ START
   DL "https://..."           Open menu with a URL
   cyber-help                 Show this help page
 
+LEARN REGEX
+  Menu option 15 opens interactive Bash regular-expression lessons.
+  Basic Regex covers anchors, character ranges, quantifiers and beginner patterns.
+  Advanced Regex covers groups, alternation, character classes, negation and capture groups.
+  The practice tester checks your own pattern against sample text using Bash ERE.
+  Bash ERE does not support Perl-style lookaround or \d shorthand.
+
 SHARE MENU
   Share a supported link from another Android app to Termux.
   Telegram t.me links are routed to the Telegram downloader.
