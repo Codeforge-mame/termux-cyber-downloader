@@ -854,12 +854,13 @@ ignored = {
     "compression", "encodingprocess", "exifbyteorder",
 }
 ignore = {re.sub(r"[^a-z0-9]", "", x) for x in ignored}
+sensitive = {re.sub(r"[^a-z0-9]", "", x) for x in sensitive}
 found = []
 for key, value in tags.items():
     name = re.sub(r"[^a-z0-9]", "", key.rsplit(":", 1)[-1].lower())
     if name in ignore:
         continue
-    if any(token in name for token in sensitive) and value not in (None, "", [], {}):
+    if (name in sensitive or name.startswith("gps")) and value not in (None, "", [], {}):
         found.append(key)
 if found:
     print("POTENTIAL PRIVATE METADATA REMAINS:")
