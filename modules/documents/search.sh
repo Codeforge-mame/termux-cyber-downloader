@@ -1098,7 +1098,7 @@ PY
 }
 
 # Presentation conversion uses LibreOffice for real format conversion.
-# Without it, python-pptx can export PPTX slide text to a plain TXT file.
+# Without it, Python's built-in ZIP/XML libraries export PPTX slide text to TXT.
 document_convert_presentation_file() {
   local src="$1" ext="${1##*.}" choice target output_dir filename output suffix probe
   local office_cmd="" rc=1
