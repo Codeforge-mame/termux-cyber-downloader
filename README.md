@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/Telegram-tdl-229ED9?style=for-the-badge&logo=telegram&logoColor=white" alt="tdl">
 </p>
 
-CyberForge is a menu-driven downloader and media toolkit built for **Termux on Android**. It brings video, audio, subtitles, Telegram media, playlists, documents, APK downloads, image processing, and tool updates into one terminal interface.
+CyberForge is a menu-driven downloader and media toolkit built for **Termux on Android**. It brings video, audio, subtitles, Telegram media, playlists, documents, APK downloads, image processing, regex learning, and tool updates into one terminal interface.
 
 > The cyber-security-inspired artwork is a visual theme. CyberForge is a downloader and media toolkit, not a security scanner or penetration-testing tool.
 
@@ -29,6 +29,7 @@ CyberForge is a menu-driven downloader and media toolkit built for **Termux on A
 - **Playlists:** save playlist items into a named folder with numbered filenames.
 - **Telegram:** download public Telegram media with selectable 1, 2, 4, or 8 transfer threads using the standard `tdl` release.
 - **Document Manager:** search local filenames and file types with paginated results (10 per page), navigate pages, jump to a page, select files across pages, and perform copy, move, delete, read/open, conversion, metadata cleaning, and metadata verification. It also inspects file details and downloads documents or archives. Storage roots are checked for real read/write access.
+- **Regex learning:** interactive basic and advanced Bash regular-expression lessons, examples, and a pattern tester with capture-group output.
 - **Sequential queue:** process links one by one and keep failed or cancelled links for retry.
 - **APK downloads:** direct APK URLs and optional APKPure/F-Droid sources through `apkeep`.
 - **Image and media tools:** direct image and supported gallery downloads, video thumbnails, crops, resizing, conversion, compression, metadata stripping, Expo/Web asset packs, and image-to-PDF.
@@ -150,6 +151,17 @@ cyber-help
 | 12 | Document Manager: local file search and document / file download |
 | 13 | Android 4G network settings |
 | 14 | Tool update center |
+| 15 | Learn Regex: basic and advanced lessons with a practice tester |
+
+## Learn Regex
+
+Choose **15) Learn Regex** from the main menu.
+
+- **Basic Regex:** learn anchors, character ranges, digits, letters, quantifiers, repetition counts, and common validation patterns.
+- **Advanced Regex:** learn groups, alternation, character classes, negation, practical patterns, and capture groups.
+- **Practice tester:** enter a Bash extended regular expression and sample text to see whether it matches and inspect captured groups.
+
+The lessons teach the regular-expression syntax supported by Bash's `[[ string =~ pattern ]]` operator. This is POSIX extended regular expression (ERE) syntax, not Perl-compatible regex: use `[0-9]` instead of `\d`, and note that lookahead and lookbehind are not supported.
 
 ## Document Manager
 
@@ -241,14 +253,14 @@ termux-cyber-downloader/
 │   └── common.sh
 ├── modules/
 │   ├── main_menu.sh
+│   ├── regex_learning.sh
 │   ├── video.sh
 │   ├── documents.sh
 │   ├── image.sh
 │   ├── telegram.sh
 │   ├── queue.sh
 │   ├── apk.sh
-│   ├── movie.sh
-│   └── tools.sh
+│   └── movie.sh
 ├── legacy/       # inactive backup
 └── data/         # download queue and history
 ```
