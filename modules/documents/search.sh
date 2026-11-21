@@ -257,55 +257,109 @@ document_selected_file_info() {
 document_manage_matches() {
   local title="$1" choice token start end n idx src dest base ext stem candidate suffix action
   local selection copied moved deleted failed skipped=0 tmpcopy source_real target_real attempt valid allowed
-  local -a visible=() selected=() tokens=()
-  local -A seen=()
+  local page=0 page_size=10 page_count page_start page_end page_items global_index file_size file_ext
+  local -a visible=() selected=() tokens=() selected_order=()
+  local -A selected_seen=()
   local total="${#DOC_RESULT_FILES[@]}"
 
   (( total > 0 )) || { warn "No matching files were found."; return 0; }
+  page_count=$(((total + page_size - 1) / page_size))
   banner "$title"
-  printf 'Found %s matching file(s).\n' "$total"
-  for idx in "${!DOC_RESULT_FILES[@]}"; do
-    (( idx >= 100 )) && break
-    visible+=("${DOC_RESULT_FILES[$idx]}")
-    printf '\n%s) %s\n   %s\n' "$((idx + 1))" "${DOC_RESULT_FILES[$idx]##*/}" "${DOC_RESULT_FILES[$idx]}"
-  done
-  (( total > 100 )) && warn "Showing the first 100 results. Narrow the search before managing files."
-  printf '\n'
-  valid=0
-  for ((attempt=1; attempt<=3; attempt++)); do
-    selected=(); tokens=(); seen=()
-    ask "Select files (e.g. 1 35 74 or 1-5; 0 to return): " selection
-    [[ "$selection" == "0" || -z "$selection" ]] && return 0
+  printf 'Found %s matching file(s). Showing 10 per page.\n' "$total"
+
+  # Browse results page by page. Selections accumulate across pages until Done.
+  while true; do
+    page_start=$((page * page_size))
+    page_end=$((page_start + page_size))
+    (( page_end > total )) && page_end="$total"
+    visible=()
+    printf '\nRESULTS PAGE %s/%s | Files %s-%s of %s | Selected: %s\n' \
+      "$((page + 1))" "$page_count" "$((page_start + 1))" "$page_end" "$total" "${#selected_order[@]}"
+    printf '%s\n' '------------------------------------------------------------'
+    for ((global_index=page_start; global_index<page_end; global_index++)); do
+      src="${DOC_RESULT_FILES[$global_index]}"
+      visible+=("$src")
+      file_ext="${src##*/}"; file_ext="${file_ext##*.}"; file_ext="${file_ext,,}"
+      file_size="$(document_file_size "$src")"
+      if [[ -n "${selected_seen[$global_index]+x}" ]]; then
+        printf '%2s) [x] %-34.34s | %-10s | %s\n' "$((global_index - page_start + 1))" "${src##*/}" "$file_size" "$(document_file_category "$file_ext")"
+      else
+        printf '%2s) [ ] %-34.34s | %-10s | %s\n' "$((global_index - page_start + 1))" "${src##*/}" "$file_size" "$(document_file_category "$file_ext")"
+      fi
+      printf '    %s\n' "$src"
+    done
+    printf '%s\n' '------------------------------------------------------------'
+    printf 'Commands: indexes/ranges | a=select page | c=clear selection | n=next | p=previous | f=first | l=last | j NUMBER=jump | d=done | q=quit\n'
+    ask "Selection / page command: " selection
     selection="${selection//,/ }"
+    case "$selection" in
+      q|Q|0) return 0 ;;
+      d|D|done|DONE) break ;;
+      n|N|next|NEXT)
+        if (( page + 1 < page_count )); then ((page += 1)); else warn "Already on the last page."; fi
+        continue ;;
+      p|P|prev|PREV|previous|PREVIOUS)
+        if (( page > 0 )); then ((page -= 1)); else warn "Already on the first page."; fi
+        continue ;;
+      f|F|first|FIRST) page=0; continue ;;
+      l|L|last|LAST) page=$((page_count - 1)); continue ;;
+      c|C|clear|CLEAR)
+        selected_order=(); selected_seen=()
+        info "Selection cleared."
+        continue ;;
+      a|A|all|ALL)
+        for ((global_index=page_start; global_index<page_end; global_index++)); do
+          if [[ -z "${selected_seen[$global_index]+x}" ]]; then
+            selected_order+=("$global_index")
+            selected_seen[$global_index]=1
+          fi
+        done
+        info "Selected all files on this page."
+        continue ;;
+      j *|J *)
+        token="${selection#?}"; token="${token//[[:space:]]/}"
+        if [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= page_count )); then
+          page=$((token - 1))
+        else
+          warn "Enter a page number between 1 and $page_count."
+        fi
+        continue ;;
+    esac
+
+    if [[ -z "$selection" ]]; then
+      warn "Enter file indexes, a page command, or d to finish."
+      continue
+    fi
     read -r -a tokens <<< "$selection"
     valid=1
-    for token in "${tokens[@]}"; do
-      if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-        start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
-        if (( start < 1 || end < start || end > ${#visible[@]} )); then
-          err "Invalid range: $token. Choose between 1 and ${#visible[@]} (attempt $attempt/3)."
+    for ((attempt=1; attempt<=3; attempt++)); do
+      valid=1
+      for token in "${tokens[@]}"; do
+        if [[ "$token" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+          start="${BASH_REMATCH[1]}"; end="${BASH_REMATCH[2]}"
+          if (( start < 1 || end < start || end > ${#visible[@]} )); then
+            err "Invalid range: $token. Choose indexes 1-${#visible[@]} (attempt $attempt/3)."
+            valid=0; break
+          fi
+          for ((n=start; n<=end; n++)); do
+            idx=$((page_start + n - 1))
+            if [[ -z "${selected_seen[$idx]+x}" ]]; then selected_order+=("$idx"); selected_seen[$idx]=1; fi
+          done
+        elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
+          idx=$((page_start + token - 1))
+          if [[ -z "${selected_seen[$idx]+x}" ]]; then selected_order+=("$idx"); selected_seen[$idx]=1; fi
+        else
+          err "Invalid selection: $token. Use page indexes 1-${#visible[@]} or ranges (attempt $attempt/3)."
           valid=0; break
         fi
-        for ((n=start; n<=end; n++)); do
-          idx=$((n - 1))
-          if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
-        done
-      elif [[ "$token" =~ ^[0-9]+$ ]] && (( token >= 1 && token <= ${#visible[@]} )); then
-        idx=$((token - 1))
-        if [[ -z "${seen[$idx]+x}" ]]; then selected+=("${visible[$idx]}"); seen[$idx]=1; fi
-      else
-        err "Invalid file selection: $token. Use indexes such as 1 3 5 or ranges like 1-5 (attempt $attempt/3)."
-        valid=0; break
-      fi
+      done
+      break
     done
-    (( valid == 1 )) && break
+    if (( valid == 0 )); then warn "Selection was not changed. Try again."; fi
   done
-  if (( valid == 0 )); then
-    warn "Maximum attempts reached. Returning to the previous menu."
-    return 1
-  fi
 
-  (( ${#selected[@]} > 0 )) || return 0
+  for idx in "${selected_order[@]}"; do selected+=("${DOC_RESULT_FILES[$idx]}"); done
+  (( ${#selected[@]} > 0 )) || { warn "No files selected."; return 0; }
   banner "SELECTED FILES"
   printf 'Selected %s file(s):\n' "${#selected[@]}"
   for src in "${selected[@]}"; do printf ' - %s\n' "${src##*/}"; done
